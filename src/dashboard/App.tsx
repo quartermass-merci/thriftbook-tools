@@ -105,7 +105,7 @@ function Sparkline({ points }: { points: number[] }) {
 function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[number, number]> }) {
   if (item.availability !== 'in_stock' || item.lowestPriceCents == null) return <span className="text-faint">—</span>
   const pts = priceArr(history)
-  if (pts.length < 2) return <span className="text-faint" title="Building price history…">·</span>
+  if (pts.length < 2) return <span className="text-faint" title="Builds as prices change over time">—</span>
   const min = Math.min(...pts), max = Math.max(...pts), cur = item.lowestPriceCents
   const pct = max > min ? (cur - min) / (max - min) : 0.5
   const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-olive' } : pct >= 0.75 ? { t: 'High', c: 'text-accent' } : { t: 'Typical', c: 'text-muted' }
@@ -193,7 +193,6 @@ export function App() {
           </div>
         ),
       },
-      { key: 'genre', label: 'Genre', sortVal: (i) => i.genre ?? null, render: (i) => i.genre ?? '—' },
       { key: 'lists', label: 'Lists', sortVal: (i) => listsOf(i).slice().sort().join(',') || null, render: (i) => listsOf(i).map((n) => <Chip key={n}>{n}</Chip>) },
       { key: 'format', label: 'Format', sortVal: (i) => i.format ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.format?.replace('_', ' ') ?? '—'}</span> },
       {
@@ -207,7 +206,7 @@ export function App() {
           </span>
         ),
       },
-      { key: 'price', label: 'Lowest', align: 'right', sortVal: (i) => (i.availability === 'in_stock' && i.lowestPriceCents != null ? i.lowestPriceCents : null), render: (i) => <span className="whitespace-nowrap font-medium">{i.availability === 'in_stock' ? formatCents(i.lowestPriceCents) : '—'}</span> },
+      { key: 'price', label: 'Lowest', align: 'right', sortVal: (i) => (i.availability === 'in_stock' && i.lowestPriceCents != null ? i.lowestPriceCents : null), render: (i) => <span className="whitespace-nowrap text-[15px] font-semibold text-ink">{i.availability === 'in_stock' ? formatCents(i.lowestPriceCents) : '—'}</span> },
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
@@ -316,8 +315,17 @@ export function App() {
       <header className="flex items-center justify-between border-b border-line px-6 py-3">
         <div>
           <h1 className="font-display text-xl font-semibold tracking-tight">ThriftBooks Wishlist</h1>
-          <p className="text-xs text-muted">
-            {snapshot ? `Showing ${counts.shown} of ${counts.total} · ${counts.buyable} buyable · ${counts.free} free-book picks` : 'Not synced yet'}
+          <p className="text-sm text-muted">
+            {snapshot ? (
+              <>
+                <span className="font-mono font-semibold text-ink">{counts.shown}</span> of{' '}
+                <span className="font-mono text-ink">{counts.total}</span> ·{' '}
+                <span className="font-mono font-semibold text-ink">{counts.buyable}</span> buyable ·{' '}
+                <span className="font-mono font-semibold text-accent">{counts.free}</span> free-book picks
+              </>
+            ) : (
+              'Not synced yet'
+            )}
             {status && <span className="ml-2 text-faint">· {status}</span>}
           </p>
         </div>
@@ -343,7 +351,7 @@ export function App() {
             <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>List</button>
             <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>Gallery</button>
           </div>
-          <button onClick={sync} className="rounded bg-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-olive-700">Sync</button>
+          <button onClick={sync} className="rounded border border-line px-3 py-1.5 text-sm text-olive hover:bg-cream/40">↻ Sync</button>
         </div>
       </header>
 
@@ -393,7 +401,7 @@ export function App() {
           ) : (
             <div className="overflow-x-auto">
               <p className="mb-2 text-[11px] text-faint">
-                Sorted by {sortSummary}. Click a column to sort; <strong>Shift-click</strong> a second column for a tiebreaker.
+                Sorted by {sortSummary}. Click a column to sort, <strong>Shift-click</strong> a second for a tiebreaker. Price trend and Back-in-stock fill in as you sync over time.
               </p>
               <table className="w-full min-w-[1100px] border-collapse text-sm">
                 <thead>
