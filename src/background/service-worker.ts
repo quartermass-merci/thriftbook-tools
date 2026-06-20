@@ -23,13 +23,25 @@ chrome.runtime.onStartup.addListener(() => void registerAlarm())
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== SYNC_ALARM) return
   const tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
+  let synced = false
   for (const t of tabs) {
     if (t.id == null) continue
     try {
       await chrome.tabs.sendMessage(t.id, { type: 'SYNC_NOW' } as Msg)
+      synced = true
       break
     } catch {
       /* no live content script in this tab — try the next */
+    }
+  }
+  if (synced) return
+  // No open ThriftBooks tab — optionally open a hidden one so alerts still fire.
+  const s = await getSettings()
+  if (s.backgroundTabSync) {
+    const tab = await chrome.tabs.create({ url: 'https://www.thriftbooks.com/list/', active: false })
+    if (tab.id != null) {
+      const id = tab.id
+      setTimeout(() => void chrome.tabs.remove(id).catch(() => {}), 45000)
     }
   }
 })
@@ -39,7 +51,15 @@ const notifTargets = new Map<string, string>()
 
 chrome.runtime.onMessage.addListener((msg: Msg) => {
   if (msg?.type === 'NOTIFY') fireNotifications(msg.items)
+  if (msg?.type === 'TEST_NOTIFY') {
+    fireNotifications([{ id: 'test', title: 'Test notification', url: chrome.runtime.getURL('src/dashboard/index.html'), kind: 'ThriftBooks Wishlist', detail: 'Notifications are working ✓' }])
+  }
   return undefined
+})
+
+// Re-register the alarm whenever the sync cadence changes.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) void registerAlarm()
 })
 
 function fireNotifications(items: NotifyItem[]): void {

@@ -14,6 +14,7 @@ export type Msg =
   | { type: 'GET_SYNC_STATE' }
   | { type: 'DELETE_ITEM'; idListItem: number; id: string }
   | { type: 'NOTIFY'; items: NotifyItem[] }
+  | { type: 'TEST_NOTIFY' }
 
 export interface SyncAck {
   ok: boolean
