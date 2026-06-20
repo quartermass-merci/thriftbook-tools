@@ -36,10 +36,10 @@ const MONO_COLS = new Set(['price', 'watching', 'copies', 'backInStock', 'wishli
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
 function Chip({ children }: { children: ReactNode }) {
-  return <span className="mr-1 inline-block rounded bg-cream/50 px-1.5 py-0.5 text-[11px] text-muted">{children}</span>
+  return <span className="mr-1 inline-block rounded bg-cream/50 px-1.5 py-0.5 text-[13px] text-muted">{children}</span>
 }
 function Flag({ children }: { children: ReactNode }) {
-  return <span className="mr-1 inline-block rounded bg-cream/60 px-1 py-0.5 text-[10px] font-medium text-muted">{children}</span>
+  return <span className="mr-1 inline-block rounded bg-cream/60 px-1 py-0.5 text-[12px] font-medium text-muted">{children}</span>
 }
 function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   if (!st) return null
@@ -48,8 +48,8 @@ function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   if (!back && !isNew) return null
   return (
     <>
-      {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[10px] font-semibold text-white">BACK IN STOCK</span>}
-      {isNew && <span className="mr-1 inline-block rounded bg-olive/10 px-1 py-0.5 text-[10px] font-semibold text-olive">NEW</span>}
+      {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-white">BACK IN STOCK</span>}
+      {isNew && <span className="mr-1 inline-block rounded bg-olive/10 px-1 py-0.5 text-[12px] font-semibold text-olive">NEW</span>}
     </>
   )
 }
@@ -59,8 +59,8 @@ function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { lab
   return (
     <div className="mb-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</span>
-        <span className="text-[10px] text-faint">
+        <span className="text-[13px] font-semibold uppercase tracking-wide text-faint">{label}</span>
+        <span className="text-[12px] text-faint">
           <button onClick={onAll} className="hover:text-olive">All</button>
           {' · '}
           <button onClick={onNone} className="hover:text-olive">None</button>
@@ -68,10 +68,10 @@ function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { lab
       </div>
       <div className="max-h-44 space-y-0.5 overflow-y-auto">
         {options.map(([v, n]) => (
-          <label key={v} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+          <label key={v} className="flex cursor-pointer items-center gap-2 text-[15px] text-ink">
             <input type="checkbox" checked={!excluded.has(v)} onChange={() => onToggle(v)} />
             <span className="flex-1 truncate">{v}</span>
-            <span className="text-xs text-faint">{n}</span>
+            <span className="text-[13px] text-faint">{n}</span>
           </label>
         ))}
       </div>
@@ -112,7 +112,7 @@ function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[nu
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <Sparkline points={pts} />
-      {v && <span className={`text-[10px] font-semibold ${v.c}`}>{v.t}</span>}
+      {v && <span className={`text-[12px] font-semibold ${v.c}`}>{v.t}</span>}
     </span>
   )
 }
@@ -187,7 +187,7 @@ export function App() {
               <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-olive">{i.title}</a>
               <div className="mt-0.5">
                 <FreshBadges st={states[i.id]} cutoff={freshCutoff} />
-                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent/10 px-1 py-0.5 text-[10px] font-semibold text-accent">FREE-BOOK PICK</span>}
+                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent/10 px-1 py-0.5 text-[12px] font-semibold text-accent">FREE-BOOK PICK</span>}
               </div>
             </div>
           </div>
@@ -206,7 +206,7 @@ export function App() {
           </span>
         ),
       },
-      { key: 'price', label: 'Lowest', align: 'right', sortVal: (i) => (i.availability === 'in_stock' && i.lowestPriceCents != null ? i.lowestPriceCents : null), render: (i) => <span className="whitespace-nowrap text-[15px] font-semibold text-ink">{i.availability === 'in_stock' ? formatCents(i.lowestPriceCents) : '—'}</span> },
+      { key: 'price', label: 'Lowest', align: 'right', sortVal: (i) => (i.availability === 'in_stock' && i.lowestPriceCents != null ? i.lowestPriceCents : null), render: (i) => <span className="whitespace-nowrap text-base font-semibold text-ink">{i.availability === 'in_stock' ? formatCents(i.lowestPriceCents) : '—'}</span> },
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
@@ -316,7 +316,7 @@ export function App() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">ThriftBooks Wishlist</h1>
-            <p className="mt-0.5 text-sm text-canvas/75">
+            <p className="mt-0.5 text-[15px] text-canvas/75">
               {snapshot ? (
                 <>
                   <span className="font-mono font-semibold text-canvas">{counts.shown}</span> of{' '}
@@ -331,7 +331,7 @@ export function App() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-sm text-canvas/80">
+            <div className="flex items-center gap-1 text-[15px] text-canvas/80">
               <span>Sort</span>
               <select
                 value={sorts[0]?.key ?? 'wishlisted'}
@@ -348,11 +348,11 @@ export function App() {
                 {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
               </button>
             </div>
-            <div className="flex overflow-hidden rounded border border-white/25 text-sm">
+            <div className="flex overflow-hidden rounded border border-white/25 text-[15px]">
               <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
               <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
             </div>
-            <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-sm hover:bg-white/10">↻ Sync</button>
+            <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
           </div>
         </div>
       </header>
@@ -360,20 +360,20 @@ export function App() {
       <div className="flex min-h-0 flex-1">
         <aside className="w-60 shrink-0 overflow-y-auto border-r border-line p-5">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-semibold">Filters</span>
-            {filtersActive && <button onClick={resetFilters} className="text-xs text-olive hover:underline">Reset</button>}
+            <span className="text-[15px] font-semibold">Filters</span>
+            {filtersActive && <button onClick={resetFilters} className="text-[13px] text-olive hover:underline">Reset</button>}
           </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-sm" />
-          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-ink">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-[15px]" />
+          <label className="mb-3 flex cursor-pointer items-center gap-2 text-[15px] text-ink">
             <input type="checkbox" checked={freeBookOnly} onChange={(e) => setFreeBookOnly(e.target.checked)} />
             Free-book picks only
           </label>
           <div className="mb-3">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Price ($)</div>
+            <div className="mb-1 text-[13px] font-semibold uppercase tracking-wide text-faint">Price ($)</div>
             <div className="flex items-center gap-1">
-              <input value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="min" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-sm" />
+              <input value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="min" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-[15px]" />
               <span className="text-faint">–</span>
-              <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="max" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-sm" />
+              <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="max" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-[15px]" />
             </div>
           </div>
           <div className="my-4 border-t border-line" />
@@ -403,12 +403,12 @@ export function App() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <p className="mb-2 text-[11px] text-faint">
+              <p className="mb-2 text-[13px] text-faint">
                 Sorted by {sortSummary}. Click a column to sort, <strong>Shift-click</strong> a second for a tiebreaker. Price trend and Back-in-stock fill in as you sync over time.
               </p>
-              <table className="w-full min-w-[1100px] border-collapse text-sm">
+              <table className="w-full min-w-[1100px] border-collapse text-[15px]">
                 <thead>
-                  <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-faint">
+                  <tr className="border-b border-line text-left text-[13px] uppercase tracking-wide text-faint">
                     {cols.map((c) => {
                       const si = sorts.findIndex((s) => s.key === c.key)
                       return (
@@ -447,8 +447,8 @@ export function App() {
 function Empty({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto mt-10 max-w-md rounded-lg border border-dashed border-line p-10 text-center">
-      <p className="text-base font-medium text-muted">{title}</p>
-      <p className="mt-2 text-sm text-muted">{children}</p>
+      <p className="text-lg font-medium text-muted">{title}</p>
+      <p className="mt-2 text-[15px] text-muted">{children}</p>
     </div>
   )
 }

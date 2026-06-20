@@ -7,7 +7,7 @@ import { fmtDate } from '@/shared/util/date'
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
 function Badge({ cls, children }: { cls: string; children: ReactNode }) {
-  return <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>{children}</span>
+  return <span className={`inline-block rounded px-1.5 py-0.5 text-[12px] font-semibold ${cls}`}>{children}</span>
 }
 function Row({ k, v, mono }: { k: string; v: ReactNode; mono?: boolean }) {
   return (
@@ -68,15 +68,15 @@ export function GalleryCard({
           >
             {it.title}
           </a>
-          <div className="mt-0.5 text-sm font-medium text-muted">{it.author ?? '—'}</div>
+          <div className="mt-0.5 text-[15px] font-medium text-muted">{it.author ?? '—'}</div>
           <div className="mt-2">
             {inStock ? (
               <div>
-                <span className="text-xs text-muted">{cap(it.offerCondition)}</span>
+                <span className="text-[13px] text-muted">{cap(it.offerCondition)}</span>
                 <span className="ml-1.5 font-mono text-lg font-bold tabular-nums text-ink">{formatCents(it.lowestPriceCents)}</span>
               </div>
             ) : (
-              <div className="text-sm font-medium text-faint">
+              <div className="text-[15px] font-medium text-faint">
                 Out of stock{it.othersWatching ? ` · ${it.othersWatching} watching` : ''}
               </div>
             )}
@@ -89,7 +89,7 @@ export function GalleryCard({
         </div>
       </div>
 
-      <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 border-t border-line pt-2 text-xs">
+      <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-1 border-t border-line pt-2 text-[13px]">
         <Row k="Format" v={cap(it.format)} />
         {it.language && <Row k="Language" v={cap(it.language)} />}
         {it.genre && <Row k="Genre" v={it.genre} />}
