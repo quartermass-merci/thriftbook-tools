@@ -11,7 +11,7 @@ import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationT
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
 import { formatCents } from '@/shared/util/money'
-import type { Msg, SyncAck, DeleteAck, NotifyItem } from '@/shared/messaging/protocol'
+import type { Msg, SyncAck, DeleteAck, EnrichAck, NotifyItem } from '@/shared/messaging/protocol'
 
 const SYNC_THROTTLE_MS = 90_000
 
@@ -73,7 +73,7 @@ function computeNotifications(
   return out
 }
 
-const ENRICH_BATCH = 10
+const ENRICH_BATCH = 25
 const ENRICH_DELAY = 350
 
 function mergeEnrichment(items: WishlistItem[], map: Record<string, Enrichment>): void {
@@ -106,6 +106,47 @@ async function enrichBatch(items: WishlistItem[], map: Record<string, Enrichment
     mergeEnrichment(snap.items, map)
     await updateSnapshot(snap)
     broadcast({ type: 'SNAPSHOT_UPDATED', capturedAt: snap.capturedAt, itemCount: snap.items.length })
+  }
+}
+
+let enriching = false
+/** Enrich EVERY not-yet-enriched item (not just a batch), persisting + re-merging
+ *  every 10 so the dashboard's progress bar climbs live. */
+async function enrichAll(): Promise<EnrichAck> {
+  if (enriching) return { ok: false, error: 'already enriching' }
+  const snap0 = await getSnapshot()
+  if (!snap0) return { ok: false, error: 'Sync your wishlist first.' }
+  enriching = true
+  try {
+    const map = await getEnrichmentMap()
+    const todo = snap0.items.filter((it) => it.productId && it.productUrl && !map[it.productId])
+    const flush = async () => {
+      await setEnrichmentMap(map)
+      const s = await getSnapshot()
+      if (s) {
+        mergeEnrichment(s.items, map)
+        await updateSnapshot(s)
+        broadcast({ type: 'SNAPSHOT_UPDATED', capturedAt: s.capturedAt, itemCount: s.items.length })
+      }
+    }
+    let done = 0
+    for (const it of todo) {
+      const e = await fetchEnrichment(it.productUrl as string)
+      if (e) map[it.productId as string] = e
+      done++
+      if (done % 10 === 0) {
+        await flush()
+        setMarker(`Enriching… ${done}/${todo.length}`)
+      }
+      await new Promise((r) => setTimeout(r, ENRICH_DELAY))
+    }
+    await flush()
+    setMarker(`✓ Enriched ${done} books`)
+    return { ok: true, enriched: done }
+  } catch (e) {
+    return { ok: false, error: String(e) }
+  } finally {
+    enriching = false
   }
 }
 
@@ -169,6 +210,10 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
   }
   if (msg?.type === 'DELETE_ITEM') {
     void deleteItem(msg.idListItem, msg.id).then(sendResponse)
+    return true
+  }
+  if (msg?.type === 'ENRICH_NOW') {
+    void enrichAll().then(sendResponse)
     return true
   }
   return undefined

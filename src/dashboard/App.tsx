@@ -5,7 +5,7 @@ import { getSnapshot, getSettings, getItemStates, getPriceHistory, STORAGE_KEYS 
 import { onKvChange } from '@/shared/storage/kv'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
-import { triggerSyncFromUI, deleteItemViaUI } from '@/shared/sync-trigger'
+import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI } from '@/shared/sync-trigger'
 import { GalleryCard } from './components/GalleryCard'
 import { categorize, categoryRank } from '@/shared/taxonomy'
 
@@ -33,7 +33,7 @@ const FACETS = [
   { id: 'language', label: 'Language' },
 ] as const
 
-const MONO_COLS = new Set(['price', 'watching', 'copies', 'backInStock', 'wishlisted', 'published'])
+const MONO_COLS = new Set(['price', 'watching', 'copies', 'backInStock', 'wishlisted', 'published', 'isbn10', 'isbn13'])
 
 const CONDITION_ORDER = ['New', 'Like New', 'Very Good', 'Good', 'Acceptable', 'Unknown']
 const conditionRank = (s: string) => {
@@ -150,6 +150,7 @@ export function App() {
   const [sorts, setSorts] = useState<SortSpec[]>([{ key: 'wishlisted', dir: 'desc' }])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
+  const [enriching, setEnriching] = useState(false)
 
   useEffect(() => {
     void getSnapshot().then(setSnapshot)
@@ -251,6 +252,9 @@ export function App() {
       },
       { key: 'lists', label: 'Lists', sortVal: (i) => listsOf(i).slice().sort().join(',') || null, render: (i) => listsOf(i).map((n) => <Chip key={n}>{n}</Chip>) },
       { key: 'format', label: 'Format', sortVal: (i) => i.format ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.format?.replace('_', ' ') ?? '—'}</span> },
+      { key: 'language', label: 'Language', sortVal: (i) => i.language ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.language ? cap(i.language) : '—'}</span> },
+      { key: 'category', label: 'Category', sortVal: (i) => { const c = categorize(i); return c ? categoryRank(c) : null }, render: (i) => <span className="whitespace-nowrap">{categorize(i) ?? '—'}</span> },
+      { key: 'publisher', label: 'Publisher', sortVal: (i) => i.publisher?.toLowerCase() ?? null, render: (i) => <span className="whitespace-nowrap">{i.publisher ?? '—'}</span> },
       {
         key: 'condition', label: 'Condition', sortVal: (i) => (i.availability === 'in_stock' ? i.offerCondition ?? null : null),
         render: (i) => (
@@ -274,6 +278,8 @@ export function App() {
       { key: 'backInStock', label: 'Back in stock', title: 'Most recent return to stock (recorded since install)', sortVal: (i) => states[i.id]?.lastBackInStockAt ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(states[i.id]?.lastBackInStockAt)}</span> },
       { key: 'wishlisted', label: 'Wishlisted', sortVal: (i) => parseDate(i.dateAdded) ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(i.dateAdded)}</span> },
       { key: 'published', label: 'Published', sortVal: (i) => parseDate(i.releaseDate) ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(i.releaseDate)}</span> },
+      { key: 'isbn10', label: 'ISBN', sortVal: (i) => i.isbn10 ?? null, render: (i) => i.isbn10 ?? '—' },
+      { key: 'isbn13', label: 'ISBN13', sortVal: (i) => i.isbn13 ?? null, render: (i) => i.isbn13 ?? '—' },
       { key: 'trend', label: 'Price trend', title: 'Current price vs its recorded range', sortVal: (i) => trendPct(i, histories[i.id]), render: (i) => <PriceTrend item={i} history={histories[i.id]} /> },
     ],
     [listName, ceiling, states, freshCutoff, histories],
@@ -334,6 +340,8 @@ export function App() {
     free: items.filter((i) => isFreeBookEligible(i, ceiling)).length,
   }), [items, filtered, ceiling])
 
+  const enrichedCount = useMemo(() => items.filter((i) => categorize(i) != null).length, [items])
+
   const onSort = (key: string, additive: boolean) => {
     setSorts((prev) => {
       const existing = prev.find((s) => s.key === key)
@@ -358,6 +366,13 @@ export function App() {
     setStatus('Syncing…')
     const ack = await triggerSyncFromUI()
     setStatus(ack.ok ? `Synced ${ack.itemCount} books` : ack.error ?? 'Could not sync')
+  }
+  const runEnrichAll = async () => {
+    setEnriching(true)
+    setStatus('Enriching from product pages — watch the bar climb…')
+    const ack = await triggerEnrichFromUI()
+    setEnriching(false)
+    setStatus(ack.ok ? `Enriched ${ack.enriched ?? 0} more books` : ack.error ?? 'Could not enrich')
   }
   const onDelete = async (it: WishlistItem) => {
     if (it.idListItem == null) { setStatus('Re-sync first — this item is missing its list-item id.'); return }
@@ -423,6 +438,17 @@ export function App() {
             <span className="text-[15px] font-semibold">Filters</span>
             {filtersActive && <button onClick={resetFilters} className="text-[13px] text-olive hover:underline">Reset</button>}
           </div>
+          {snapshot && enrichedCount < items.length && (
+            <div className="mb-3 rounded border border-line bg-cream/20 p-2 text-[13px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Categorized <span className="font-mono">{enrichedCount}</span> / <span className="font-mono">{items.length}</span></span>
+                <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-olive hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-line">
+                <div className="h-full rounded bg-olive transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
+              </div>
+            </div>
+          )}
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-[15px]" />
           <label className="mb-3 flex cursor-pointer items-center gap-2 text-[15px] text-ink">
             <input type="checkbox" checked={freeBookOnly} onChange={(e) => { setFreeBookOnly(e.target.checked); if (!e.target.checked) setScanDim('off') }} />
@@ -475,7 +501,7 @@ export function App() {
               <p className="mb-2 text-[13px] text-faint">
                 Sorted by {sortSummary}. Click a column to sort, <strong>Shift-click</strong> a second for a tiebreaker. Price trend and Back-in-stock fill in as you sync over time.
               </p>
-              <table className="w-full min-w-[1100px] border-collapse text-[15px]">
+              <table className="w-full min-w-[1600px] border-collapse text-[15px]">
                 <thead>
                   <tr className="border-b border-line text-left text-[13px] uppercase tracking-wide text-faint">
                     {cols.map((c) => {

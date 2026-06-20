@@ -1,7 +1,7 @@
 // Robust "sync now" used by the popup and dashboard. The content script is the
 // only thing that can fetch the API (same-origin), so we message a thriftbooks
 // list tab — trying each match, reloading a stale one, or opening a fresh tab.
-import type { SyncAck, DeleteAck, Msg } from '@/shared/messaging/protocol'
+import type { SyncAck, DeleteAck, EnrichAck, Msg } from '@/shared/messaging/protocol'
 
 const LIST_TAB_MATCH = 'https://www.thriftbooks.com/list/*'
 
@@ -53,4 +53,24 @@ export async function deleteItemViaUI(idListItem: number, id: string): Promise<D
     }
   }
   return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then try delete again.' }
+}
+
+/** Route an "enrich everything" request to a list tab's content script. */
+export async function triggerEnrichFromUI(): Promise<EnrichAck> {
+  let tabs: chrome.tabs.Tab[] = []
+  try {
+    tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
+  } catch {
+    tabs = []
+  }
+  for (const t of tabs) {
+    if (t.id == null) continue
+    try {
+      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'ENRICH_NOW' } as Msg)) as EnrichAck
+      if (ack) return ack
+    } catch {
+      /* no content script here — try the next */
+    }
+  }
+  return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then click Enrich again.' }
 }

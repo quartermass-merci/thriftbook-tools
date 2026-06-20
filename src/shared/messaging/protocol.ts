@@ -15,6 +15,7 @@ export type Msg =
   | { type: 'DELETE_ITEM'; idListItem: number; id: string }
   | { type: 'NOTIFY'; items: NotifyItem[] }
   | { type: 'TEST_NOTIFY' }
+  | { type: 'ENRICH_NOW' }
 
 export interface SyncAck {
   ok: boolean
@@ -24,5 +25,11 @@ export interface SyncAck {
 
 export interface DeleteAck {
   ok: boolean
+  error?: string
+}
+
+export interface EnrichAck {
+  ok: boolean
+  enriched?: number
   error?: string
 }
