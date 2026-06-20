@@ -24,6 +24,7 @@ interface Col {
 
 const FACETS = [
   { id: 'list', label: 'List' },
+  { id: 'genre', label: 'Genre' },
   { id: 'availability', label: 'Availability' },
   { id: 'format', label: 'Format' },
   { id: 'condition', label: 'Condition' },
@@ -106,6 +107,7 @@ export function App() {
   const facetValuesOf = (it: WishlistItem, id: string): string[] => {
     switch (id) {
       case 'list': return listsOf(it)
+      case 'genre': return it.genre ? [it.genre] : []
       case 'availability': return [it.availability === 'in_stock' ? 'In stock' : 'Out of stock']
       case 'format': return [it.format ? cap(it.format) : 'Other']
       case 'condition': return it.availability === 'in_stock' && it.offerCondition ? [cap(it.offerCondition)] : []
@@ -141,7 +143,7 @@ export function App() {
           </div>
         ),
       },
-      { key: 'genre', label: 'Genre', pending: true, title: 'Coming soon — enriched from each book’s page', sortVal: (i) => i.genre ?? null, render: (i) => i.genre ?? '—' },
+      { key: 'genre', label: 'Genre', sortVal: (i) => i.genre ?? null, render: (i) => i.genre ?? '—' },
       { key: 'lists', label: 'Lists', sortVal: (i) => listsOf(i).slice().sort().join(',') || null, render: (i) => listsOf(i).map((n) => <Chip key={n}>{n}</Chip>) },
       { key: 'format', label: 'Format', sortVal: (i) => i.format ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.format?.replace('_', ' ') ?? '—'}</span> },
       {

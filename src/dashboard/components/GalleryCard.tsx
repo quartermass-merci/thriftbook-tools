@@ -91,6 +91,7 @@ export function GalleryCard({
         <Row k="Format" v={cap(it.format)} />
         {it.language && <Row k="Language" v={cap(it.language)} />}
         {it.genre && <Row k="Genre" v={it.genre} />}
+        {it.publisher && <Row k="Publisher" v={it.publisher} />}
         {it.isbn10 && <Row k="ISBN" v={it.isbn10} />}
         {it.isbn13 && <Row k="ISBN13" v={it.isbn13} />}
         {it.releaseDate && <Row k="Release" v={fmtDate(it.releaseDate)} />}

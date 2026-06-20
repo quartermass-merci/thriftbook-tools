@@ -77,8 +77,16 @@ export interface WishlistItem {
   isExLibrary?: boolean
   isMissingDustJacket?: boolean
   isLargePrint?: boolean
-  /** Genre / category — populated later via product-page enrichment. */
+  /** Genre / category — populated via product-page enrichment. */
   genre?: string
+}
+
+/** Product-page enrichment, cached per work id (genre + publisher aren't in the list API). */
+export interface Enrichment {
+  genre?: string
+  genres?: string[]
+  publisher?: string
+  fetchedAt: number
 }
 
 export interface SubList {

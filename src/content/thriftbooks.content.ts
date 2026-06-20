@@ -7,7 +7,9 @@ import { diffSnapshot } from '@/shared/diff/snapshotDiff'
 import type { DiffEvents } from '@/shared/diff/snapshotDiff'
 import { broadcast } from '@/shared/messaging/bus'
 import { isFreeBookEligible } from '@/shared/types'
-import type { WishlistSnapshot, ItemState, Settings, NotificationTrigger } from '@/shared/types'
+import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment } from '@/shared/types'
+import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
+import { fetchEnrichment } from './adapter/enrich'
 import { formatCents } from '@/shared/util/money'
 import type { Msg, SyncAck, DeleteAck, NotifyItem } from '@/shared/messaging/protocol'
 
@@ -71,6 +73,42 @@ function computeNotifications(
   return out
 }
 
+const ENRICH_BATCH = 10
+const ENRICH_DELAY = 350
+
+function mergeEnrichment(items: WishlistItem[], map: Record<string, Enrichment>): void {
+  for (const it of items) {
+    const e = it.productId ? map[it.productId] : undefined
+    if (!e) continue
+    if (e.genre) it.genre = e.genre
+    if (e.genres) it.genres = e.genres
+    if (e.publisher) it.publisher = e.publisher
+  }
+}
+
+/** Fetch + cache enrichment for a batch of not-yet-enriched items, then re-merge into the snapshot. */
+async function enrichBatch(items: WishlistItem[], map: Record<string, Enrichment>): Promise<void> {
+  const todo = items.filter((it) => it.productId && it.productUrl && !map[it.productId]).slice(0, ENRICH_BATCH)
+  if (!todo.length) return
+  let changed = false
+  for (const it of todo) {
+    const e = await fetchEnrichment(it.productUrl as string)
+    if (e) {
+      map[it.productId as string] = e
+      changed = true
+    }
+    await new Promise((r) => setTimeout(r, ENRICH_DELAY))
+  }
+  if (!changed) return
+  await setEnrichmentMap(map)
+  const snap = await getSnapshot()
+  if (snap) {
+    mergeEnrichment(snap.items, map)
+    await updateSnapshot(snap)
+    broadcast({ type: 'SNAPSHOT_UPDATED', capturedAt: snap.capturedAt, itemCount: snap.items.length })
+  }
+}
+
 let syncing = false
 
 async function sync(): Promise<SyncAck> {
@@ -87,12 +125,15 @@ async function sync(): Promise<SyncAck> {
     const snapshot = await apiDataSource.buildSnapshot(seed)
     const prevStates = await getItemStates()
     const { states, events } = diffSnapshot(prevStates, snapshot, now)
+    const enrMap = await getEnrichmentMap()
+    mergeEnrichment(snapshot.items, enrMap)
     const candidates = computeNotifications(snapshot, states, events, await getSettings(), now)
     await putItemStates(states)
     await putSnapshot(snapshot)
     broadcast({ type: 'SNAPSHOT_UPDATED', capturedAt: snapshot.capturedAt, itemCount: snapshot.items.length })
     if (candidates.length) broadcast({ type: 'NOTIFY', items: candidates })
     setMarker(`✓ ${snapshot.items.length} books · ${snapshot.subLists.length} lists`)
+    void enrichBatch(snapshot.items, enrMap)
     return { ok: true, itemCount: snapshot.items.length }
   } catch (e) {
     setMarker('Sync failed')
