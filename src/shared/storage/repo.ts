@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   settings: 'settings',
   lastSyncAt: 'lastSyncAt',
   itemStates: 'itemStates',
+  priceHistory: 'priceHistory',
 } as const
 
 export async function getSnapshot(): Promise<WishlistSnapshot | undefined> {
@@ -44,6 +45,15 @@ export async function getItemStates(): Promise<Record<string, ItemState>> {
 
 export async function putItemStates(states: Record<string, ItemState>): Promise<void> {
   await kvSet(STORAGE_KEYS.itemStates, states)
+}
+
+/** Per-item price time-series as [epochMs, cents] tuples (dedup-on-change, capped). */
+export async function getPriceHistory(): Promise<Record<string, Array<[number, number]>>> {
+  return (await kvGet<Record<string, Array<[number, number]>>>(STORAGE_KEYS.priceHistory)) ?? {}
+}
+
+export async function setPriceHistory(map: Record<string, Array<[number, number]>>): Promise<void> {
+  await kvSet(STORAGE_KEYS.priceHistory, map)
 }
 
 export async function getSettings(): Promise<Settings> {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { WishlistSnapshot, WishlistItem, Settings, ItemState } from '@/shared/types'
 import { isFreeBookEligible } from '@/shared/types'
-import { getSnapshot, getSettings, getItemStates, STORAGE_KEYS } from '@/shared/storage/repo'
+import { getSnapshot, getSettings, getItemStates, getPriceHistory, STORAGE_KEYS } from '@/shared/storage/repo'
 import { onKvChange } from '@/shared/storage/kv'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
@@ -52,12 +52,19 @@ function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   )
 }
 
-function FacetGroup({ label, options, excluded, onToggle }: { label: string; options: Array<[string, number]>; excluded: Set<string>; onToggle: (v: string) => void }) {
+function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { label: string; options: Array<[string, number]>; excluded: Set<string>; onToggle: (v: string) => void; onAll: () => void; onNone: () => void }) {
   if (!options.length) return null
   return (
     <div className="mb-3">
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="space-y-0.5">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+        <span className="text-[10px] text-slate-400">
+          <button onClick={onAll} className="hover:text-indigo-600">All</button>
+          {' · '}
+          <button onClick={onNone} className="hover:text-indigo-600">None</button>
+        </span>
+      </div>
+      <div className="max-h-44 space-y-0.5 overflow-y-auto">
         {options.map(([v, n]) => (
           <label key={v} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={!excluded.has(v)} onChange={() => onToggle(v)} />
@@ -70,10 +77,49 @@ function FacetGroup({ label, options, excluded, onToggle }: { label: string; opt
   )
 }
 
+function priceArr(history?: Array<[number, number]>): number[] {
+  return (history ?? []).map((x) => x[1])
+}
+function trendPct(item: WishlistItem, history?: Array<[number, number]>): number | null {
+  if (item.availability !== 'in_stock' || item.lowestPriceCents == null) return null
+  const pts = priceArr(history)
+  if (pts.length < 2) return null
+  const min = Math.min(...pts), max = Math.max(...pts)
+  return max > min ? (item.lowestPriceCents - min) / (max - min) : null
+}
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null
+  const w = 60, h = 16
+  const min = Math.min(...points), max = Math.max(...points), range = max - min || 1
+  const step = w / (points.length - 1)
+  const d = points.map((p, i) => `${(i * step).toFixed(1)},${(h - ((p - min) / range) * h).toFixed(1)}`).join(' ')
+  const up = points[points.length - 1] > points[0]
+  return (
+    <svg width={w} height={h} className="inline-block align-middle">
+      <polyline points={d} fill="none" stroke={up ? '#dc2626' : '#16a34a'} strokeWidth="1.5" />
+    </svg>
+  )
+}
+function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[number, number]> }) {
+  if (item.availability !== 'in_stock' || item.lowestPriceCents == null) return <span className="text-slate-400">—</span>
+  const pts = priceArr(history)
+  if (pts.length < 2) return <span className="text-slate-300" title="Building price history…">·</span>
+  const min = Math.min(...pts), max = Math.max(...pts), cur = item.lowestPriceCents
+  const pct = max > min ? (cur - min) / (max - min) : 0.5
+  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-emerald-700' } : pct >= 0.75 ? { t: 'High', c: 'text-rose-700' } : { t: 'Typical', c: 'text-slate-500' }
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <Sparkline points={pts} />
+      {v && <span className={`text-[10px] font-semibold ${v.c}`}>{v.t}</span>}
+    </span>
+  )
+}
+
 export function App() {
   const [snapshot, setSnapshot] = useState<WishlistSnapshot | undefined>()
   const [settings, setSettings] = useState<Settings | undefined>()
   const [states, setStates] = useState<Record<string, ItemState>>({})
+  const [histories, setHistories] = useState<Record<string, Array<[number, number]>>>({})
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [search, setSearch] = useState('')
   const [priceMin, setPriceMin] = useState('')
@@ -88,9 +134,11 @@ export function App() {
     void getSnapshot().then(setSnapshot)
     void getSettings().then(setSettings)
     void getItemStates().then(setStates)
+    void getPriceHistory().then(setHistories)
     return onKvChange<WishlistSnapshot>(STORAGE_KEYS.snapshot, (v) => {
       setSnapshot(v)
       void getItemStates().then(setStates)
+      void getPriceHistory().then(setHistories)
     })
   }, [])
 
@@ -169,8 +217,9 @@ export function App() {
       { key: 'backInStock', label: 'Back in stock', title: 'Most recent return to stock (recorded since install)', sortVal: (i) => states[i.id]?.lastBackInStockAt ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(states[i.id]?.lastBackInStockAt)}</span> },
       { key: 'wishlisted', label: 'Wishlisted', sortVal: (i) => parseDate(i.dateAdded) ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(i.dateAdded)}</span> },
       { key: 'published', label: 'Published', sortVal: (i) => parseDate(i.releaseDate) ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(i.releaseDate)}</span> },
+      { key: 'trend', label: 'Price trend', title: 'Current price vs its recorded range', sortVal: (i) => trendPct(i, histories[i.id]), render: (i) => <PriceTrend item={i} history={histories[i.id]} /> },
     ],
-    [listName, ceiling, states, freshCutoff],
+    [listName, ceiling, states, freshCutoff, histories],
   )
 
   const filtered = useMemo(() => {
@@ -316,7 +365,15 @@ export function App() {
             </div>
           </div>
           {FACETS.map((f) => (
-            <FacetGroup key={f.id} label={f.label} options={facetOptions[f.id] ?? []} excluded={excl[f.id] ?? new Set()} onToggle={(v) => toggleExcl(f.id, v)} />
+            <FacetGroup
+              key={f.id}
+              label={f.label}
+              options={facetOptions[f.id] ?? []}
+              excluded={excl[f.id] ?? new Set()}
+              onToggle={(v) => toggleExcl(f.id, v)}
+              onAll={() => setExcl((prev) => ({ ...prev, [f.id]: new Set() }))}
+              onNone={() => setExcl((prev) => ({ ...prev, [f.id]: new Set((facetOptions[f.id] ?? []).map(([v]) => v)) }))}
+            />
           ))}
         </aside>
 

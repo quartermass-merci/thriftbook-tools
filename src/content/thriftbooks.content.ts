@@ -2,7 +2,7 @@
 // snapshot across all sub-lists via the API adapter, persists it, and notifies
 // open UI. Auto-syncs on load (throttled); also responds to SYNC_NOW.
 import { apiDataSource, parseHydrate } from './adapter'
-import { putSnapshot, updateSnapshot, getSnapshot, getLastSyncAt, getItemStates, putItemStates, getSettings } from '@/shared/storage/repo'
+import { putSnapshot, updateSnapshot, getSnapshot, getLastSyncAt, getItemStates, putItemStates, getSettings, getPriceHistory, setPriceHistory } from '@/shared/storage/repo'
 import { diffSnapshot } from '@/shared/diff/snapshotDiff'
 import type { DiffEvents } from '@/shared/diff/snapshotDiff'
 import { broadcast } from '@/shared/messaging/bus'
@@ -109,6 +109,24 @@ async function enrichBatch(items: WishlistItem[], map: Record<string, Enrichment
   }
 }
 
+/** Append a price point per in-stock item whenever its lowest price changed (capped). */
+async function capturePrices(snapshot: WishlistSnapshot, now: number): Promise<void> {
+  const hist = await getPriceHistory()
+  let changed = false
+  for (const it of snapshot.items) {
+    if (it.availability !== 'in_stock' || it.lowestPriceCents == null) continue
+    const arr = hist[it.id] ?? []
+    const last = arr[arr.length - 1]
+    if (!last || last[1] !== it.lowestPriceCents) {
+      arr.push([now, it.lowestPriceCents])
+      if (arr.length > 200) arr.shift()
+      hist[it.id] = arr
+      changed = true
+    }
+  }
+  if (changed) await setPriceHistory(hist)
+}
+
 let syncing = false
 
 async function sync(): Promise<SyncAck> {
@@ -127,6 +145,7 @@ async function sync(): Promise<SyncAck> {
     const { states, events } = diffSnapshot(prevStates, snapshot, now)
     const enrMap = await getEnrichmentMap()
     mergeEnrichment(snapshot.items, enrMap)
+    await capturePrices(snapshot, now)
     const candidates = computeNotifications(snapshot, states, events, await getSettings(), now)
     await putItemStates(states)
     await putSnapshot(snapshot)
