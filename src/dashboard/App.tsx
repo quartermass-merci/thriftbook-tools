@@ -7,6 +7,7 @@ import { formatCents } from '@/shared/util/money'
 import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
 import { triggerSyncFromUI, deleteItemViaUI } from '@/shared/sync-trigger'
 import { GalleryCard } from './components/GalleryCard'
+import { categorize, categoryRank } from '@/shared/taxonomy'
 
 type SortDir = 'asc' | 'desc'
 interface SortSpec { key: string; dir: SortDir }
@@ -24,14 +25,31 @@ interface Col {
 
 const FACETS = [
   { id: 'list', label: 'List' },
-  { id: 'genre', label: 'Genre' },
+  { id: 'category', label: 'Category' },
   { id: 'availability', label: 'Availability' },
   { id: 'format', label: 'Format' },
   { id: 'condition', label: 'Condition' },
+  { id: 'publisher', label: 'Publisher' },
   { id: 'language', label: 'Language' },
 ] as const
 
 const MONO_COLS = new Set(['price', 'watching', 'copies', 'backInStock', 'wishlisted', 'published'])
+
+const CONDITION_ORDER = ['New', 'Like New', 'Very Good', 'Good', 'Acceptable', 'Unknown']
+const conditionRank = (s: string) => {
+  const i = CONDITION_ORDER.indexOf(s)
+  return i < 0 ? CONDITION_ORDER.length : i
+}
+
+type ScanDim = 'off' | 'overall' | 'category' | 'author' | 'publisher'
+type Taste = {
+  author: Map<string, number>
+  publisher: Map<string, number>
+  category: Map<string, number>
+  maxA: number
+  maxP: number
+  maxC: number
+}
 
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
@@ -127,6 +145,7 @@ export function App() {
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
   const [freeBookOnly, setFreeBookOnly] = useState(false)
+  const [scanDim, setScanDim] = useState<ScanDim>('off')
   const [excl, setExcl] = useState<Record<string, Set<string>>>({})
   const [sorts, setSorts] = useState<SortSpec[]>([{ key: 'wishlisted', dir: 'desc' }])
   const [status, setStatus] = useState('')
@@ -154,13 +173,44 @@ export function App() {
   }, [snapshot])
   const listsOf = (it: WishlistItem) => it.subListIds.map((id) => listName.get(id) ?? id)
 
+  // Taste profile across the whole wishlist — how often each author / publisher /
+  // category recurs. Drives the free-credit scan's affinity ranking.
+  const taste = useMemo(() => {
+    const author = new Map<string, number>()
+    const publisher = new Map<string, number>()
+    const category = new Map<string, number>()
+    for (const it of items) {
+      if (it.author) author.set(it.author, (author.get(it.author) ?? 0) + 1)
+      if (it.publisher) publisher.set(it.publisher, (publisher.get(it.publisher) ?? 0) + 1)
+      const c = categorize(it)
+      if (c) category.set(c, (category.get(c) ?? 0) + 1)
+    }
+    const max = (m: Map<string, number>) => Math.max(1, ...m.values())
+    return { author, publisher, category, maxA: max(author), maxP: max(publisher), maxC: max(category) }
+  }, [items])
+
+  const scanScore = (it: WishlistItem): number => {
+    const a = it.author ? taste.author.get(it.author) ?? 0 : 0
+    const p = it.publisher ? taste.publisher.get(it.publisher) ?? 0 : 0
+    const c = categorize(it)
+    const cn = c ? taste.category.get(c) ?? 0 : 0
+    switch (scanDim) {
+      case 'author': return a
+      case 'publisher': return p
+      case 'category': return cn
+      case 'overall': return a / taste.maxA + p / taste.maxP + cn / taste.maxC
+      default: return 0
+    }
+  }
+
   const facetValuesOf = (it: WishlistItem, id: string): string[] => {
     switch (id) {
       case 'list': return listsOf(it)
-      case 'genre': return it.genre ? [it.genre] : []
+      case 'category': { const c = categorize(it); return c ? [c] : [] }
       case 'availability': return [it.availability === 'in_stock' ? 'In stock' : 'Out of stock']
       case 'format': return [it.format ? cap(it.format) : 'Other']
       case 'condition': return it.availability === 'in_stock' && it.offerCondition ? [cap(it.offerCondition)] : []
+      case 'publisher': return it.publisher ? [it.publisher] : []
       case 'language': return [it.language ? cap(it.language) : 'Unknown']
       default: return []
     }
@@ -171,7 +221,13 @@ export function App() {
     FACETS.forEach((f) => (m[f.id] = new Map()))
     for (const it of items) for (const f of FACETS) for (const v of facetValuesOf(it, f.id)) m[f.id].set(v, (m[f.id].get(v) ?? 0) + 1)
     const out: Record<string, Array<[string, number]>> = {}
-    for (const f of FACETS) out[f.id] = [...m[f.id].entries()].sort((a, b) => b[1] - a[1])
+    for (const f of FACETS) {
+      const entries = [...m[f.id].entries()]
+      if (f.id === 'condition') entries.sort((a, b) => conditionRank(a[0]) - conditionRank(b[0]))
+      else if (f.id === 'category') entries.sort((a, b) => categoryRank(a[0]) - categoryRank(b[0]))
+      else entries.sort((a, b) => b[1] - a[1])
+      out[f.id] = entries
+    }
     return out
   }, [items, listName])
 
@@ -247,6 +303,10 @@ export function App() {
 
   const sorted = useMemo(() => {
     const arr = [...filtered]
+    if (scanDim !== 'off') {
+      arr.sort((a, b) => scanScore(b) - scanScore(a) || (b.lowestPriceCents ?? 0) - (a.lowestPriceCents ?? 0))
+      return arr
+    }
     arr.sort((a, b) => {
       for (const s of sorts) {
         const col = cols.find((c) => c.key === s.key)
@@ -264,7 +324,7 @@ export function App() {
       return 0
     })
     return arr
-  }, [filtered, sorts, cols])
+  }, [filtered, sorts, cols, scanDim, taste])
 
   const sortSummary = sorts.map((s) => `${cols.find((c) => c.key === s.key)?.label ?? s.key} ${s.dir === 'asc' ? '↑' : '↓'}`).join(', then ')
   const counts = useMemo(() => ({
@@ -292,7 +352,7 @@ export function App() {
     })
   }
   const resetFilters = () => {
-    setExcl({}); setSearch(''); setPriceMin(''); setPriceMax(''); setFreeBookOnly(false)
+    setExcl({}); setSearch(''); setPriceMin(''); setPriceMax(''); setFreeBookOnly(false); setScanDim('off')
   }
   const sync = async () => {
     setStatus('Syncing…')
@@ -365,7 +425,7 @@ export function App() {
           </div>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-[15px]" />
           <label className="mb-3 flex cursor-pointer items-center gap-2 text-[15px] text-ink">
-            <input type="checkbox" checked={freeBookOnly} onChange={(e) => setFreeBookOnly(e.target.checked)} />
+            <input type="checkbox" checked={freeBookOnly} onChange={(e) => { setFreeBookOnly(e.target.checked); if (!e.target.checked) setScanDim('off') }} />
             Free-book picks only
           </label>
           <div className="mb-3">
@@ -393,9 +453,18 @@ export function App() {
         <main className="min-w-0 flex-1 overflow-auto p-5">
           {!snapshot ? (
             <Empty title="No data yet">Open your <a className="text-olive underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
-          ) : sorted.length === 0 ? (
-            <Empty title="No matches">{filtersActive ? 'Nothing matches your filters.' : 'Your synced wishlist is empty.'}</Empty>
-          ) : viewMode === 'gallery' ? (
+          ) : (
+            <>
+              {freeBookOnly && <ScanBar dim={scanDim} onPick={setScanDim} count={filtered.length} />}
+              {scanDim !== 'off' ? (
+                sorted.length === 0 ? (
+                  <Empty title="No eligible books">Nothing at or under ${(ceiling / 100).toFixed(2)} is in stock right now. Loosen a filter or check back after a sync.</Empty>
+                ) : (
+                  <ScanResults items={sorted} dim={scanDim} taste={taste} />
+                )
+              ) : sorted.length === 0 ? (
+                <Empty title="No matches">{filtersActive ? 'Nothing matches your filters.' : 'Your synced wishlist is empty.'}</Empty>
+              ) : viewMode === 'gallery' ? (
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
               {sorted.map((it) => (
                 <GalleryCard key={it.id} it={it} st={states[it.id]} ceiling={ceiling} freshCutoff={freshCutoff} listNames={listsOf(it)} onDelete={onDelete} busy={busy === it.id} />
@@ -437,6 +506,8 @@ export function App() {
                 </tbody>
               </table>
             </div>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -450,5 +521,80 @@ function Empty({ title, children }: { title: string; children: ReactNode }) {
       <p className="text-lg font-medium text-muted">{title}</p>
       <p className="mt-2 text-[15px] text-muted">{children}</p>
     </div>
+  )
+}
+
+function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) => void; count: number }) {
+  const opts: Array<[ScanDim, string]> = [
+    ['overall', 'Best overall'],
+    ['category', 'By category'],
+    ['author', 'By author'],
+    ['publisher', 'By publisher'],
+  ]
+  return (
+    <div className="mb-4 rounded-lg border border-olive/30 bg-olive/5 p-4">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="font-display text-lg font-semibold text-olive">Free-credit scan</span>
+        <span className="text-[13px] text-muted">Rank your {count} eligible {count === 1 ? 'book' : 'books'} by what best fits your taste:</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {opts.map(([d, label]) => (
+          <button
+            key={d}
+            onClick={() => onPick(dim === d ? 'off' : d)}
+            className={`rounded-full border px-3 py-1 text-[13px] ${dim === d ? 'border-olive bg-olive text-canvas' : 'border-line text-ink hover:bg-cream/40'}`}
+          >
+            {label}
+          </button>
+        ))}
+        {dim !== 'off' && (
+          <button onClick={() => onPick('off')} className="rounded-full px-3 py-1 text-[13px] text-muted hover:text-accent">Clear</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function reasonFor(it: WishlistItem, dim: ScanDim, taste: Taste): string {
+  const a = it.author ? taste.author.get(it.author) ?? 0 : 0
+  const p = it.publisher ? taste.publisher.get(it.publisher) ?? 0 : 0
+  const c = categorize(it)
+  const cn = c ? taste.category.get(c) ?? 0 : 0
+  const authorTxt = a > 1 ? `${a - 1} more by ${it.author} on your list` : `Only ${it.author ?? 'this'} title you want`
+  const pubTxt = it.publisher ? `${p} from ${it.publisher} on your list` : 'Publisher not enriched yet'
+  const catTxt = c ? `${c} · ${cn} in your wishlist` : 'Not categorized yet'
+  if (dim === 'author') return authorTxt
+  if (dim === 'publisher') return pubTxt
+  if (dim === 'category') return catTxt
+  const aN = a / taste.maxA, pN = p / taste.maxP, cN = cn / taste.maxC
+  if (a > 0 && aN >= pN && aN >= cN) return authorTxt
+  if (c && cN >= pN) return catTxt
+  if (p > 0) return pubTxt
+  return c ? catTxt : 'On your wishlist'
+}
+
+function ScanResults({ items, dim, taste }: { items: WishlistItem[]; dim: ScanDim; taste: Taste }) {
+  return (
+    <ol className="space-y-2">
+      {items.map((it, i) => (
+        <li key={it.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+          <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
+          {it.coverImageUrl ? (
+            <img src={it.coverImageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" loading="lazy" />
+          ) : (
+            <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />
+          )}
+          <div className="min-w-0 flex-1">
+            <a href={it.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-olive">{it.title}</a>
+            <div className="text-[13px] text-muted">{authorSortName(it.author) || '—'}</div>
+            <div className="mt-1 inline-flex rounded bg-olive/10 px-1.5 py-0.5 text-[12px] font-medium text-olive">{reasonFor(it, dim, taste)}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(it.lowestPriceCents)}</div>
+            <div className="text-[13px] text-muted">{cap(it.offerCondition)}</div>
+          </div>
+        </li>
+      ))}
+    </ol>
   )
 }

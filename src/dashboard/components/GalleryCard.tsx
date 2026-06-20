@@ -3,6 +3,7 @@ import type { WishlistItem, ItemState } from '@/shared/types'
 import { isFreeBookEligible } from '@/shared/types'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate } from '@/shared/util/date'
+import { categorize } from '@/shared/taxonomy'
 
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
@@ -39,6 +40,7 @@ export function GalleryCard({
   const free = isFreeBookEligible(it, ceiling)
   const back = st?.lastBackInStockAt != null && st.lastBackInStockAt > freshCutoff
   const isNew = !back && st != null && st.firstSeenAt > freshCutoff
+  const category = categorize(it)
 
   return (
     <div className="relative flex flex-col rounded-lg border border-line bg-surface p-3 shadow-sm transition hover:shadow-md">
@@ -92,7 +94,7 @@ export function GalleryCard({
       <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-1 border-t border-line pt-2 text-[13px]">
         <Row k="Format" v={cap(it.format)} />
         {it.language && <Row k="Language" v={cap(it.language)} />}
-        {it.genre && <Row k="Genre" v={it.genre} />}
+        {category && <Row k="Category" v={category} />}
         {it.publisher && <Row k="Publisher" v={it.publisher} />}
         {it.isbn10 && <Row k="ISBN" v={it.isbn10} mono />}
         {it.isbn13 && <Row k="ISBN13" v={it.isbn13} mono />}
