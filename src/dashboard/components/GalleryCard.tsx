@@ -9,11 +9,11 @@ const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.
 function Badge({ cls, children }: { cls: string; children: ReactNode }) {
   return <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>{children}</span>
 }
-function Row({ k, v }: { k: string; v: ReactNode }) {
+function Row({ k, v, mono }: { k: string; v: ReactNode; mono?: boolean }) {
   return (
     <>
-      <dt className="font-semibold text-slate-500">{k}</dt>
-      <dd className="truncate text-slate-700">{v}</dd>
+      <dt className="font-semibold text-muted">{k}</dt>
+      <dd className={`truncate text-ink${mono ? ' font-mono tabular-nums' : ''}`}>{v}</dd>
     </>
   )
 }
@@ -41,12 +41,12 @@ export function GalleryCard({
   const isNew = !back && st != null && st.firstSeenAt > freshCutoff
 
   return (
-    <div className="relative flex flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md">
+    <div className="relative flex flex-col rounded-lg border border-line bg-surface p-3 shadow-sm transition hover:shadow-md">
       <button
         onClick={() => onDelete(it)}
         disabled={busy}
         title="Delete from wishlist"
-        className="absolute right-1.5 top-1.5 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+        className="absolute right-1.5 top-1.5 rounded p-1 text-faint hover:bg-accent/10 hover:text-accent disabled:opacity-40"
       >
         {busy ? '…' : '🗑'}
       </button>
@@ -56,7 +56,7 @@ export function GalleryCard({
           {it.coverImageUrl ? (
             <img src={it.coverImageUrl} alt="" className="h-auto w-full rounded object-contain shadow-sm" loading="lazy" />
           ) : (
-            <div className="aspect-[2/3] w-full rounded bg-slate-100" />
+            <div className="aspect-[2/3] w-full rounded bg-cream/50" />
           )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col pr-5">
@@ -64,39 +64,39 @@ export function GalleryCard({
             href={it.productUrl}
             target="_blank"
             rel="noreferrer"
-            className="block text-base font-extrabold leading-tight text-slate-900 hover:text-indigo-600"
+            className="block text-base font-extrabold leading-tight text-ink hover:text-olive"
           >
             {it.title}
           </a>
-          <div className="mt-0.5 text-sm font-medium text-slate-600">{it.author ?? '—'}</div>
+          <div className="mt-0.5 text-sm font-medium text-muted">{it.author ?? '—'}</div>
           <div className="mt-2">
             {inStock ? (
               <div>
-                <span className="text-xs text-slate-500">{cap(it.offerCondition)}</span>
-                <span className="ml-1.5 text-lg font-bold text-rose-700">{formatCents(it.lowestPriceCents)}</span>
+                <span className="text-xs text-muted">{cap(it.offerCondition)}</span>
+                <span className="ml-1.5 font-mono text-lg font-bold tabular-nums text-ink">{formatCents(it.lowestPriceCents)}</span>
               </div>
             ) : (
-              <div className="text-sm font-medium text-slate-400">
+              <div className="text-sm font-medium text-faint">
                 Out of stock{it.othersWatching ? ` · ${it.othersWatching} watching` : ''}
               </div>
             )}
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {back && <Badge cls="bg-green-600 text-white">BACK IN STOCK</Badge>}
-            {isNew && <Badge cls="bg-blue-100 text-blue-700">NEW</Badge>}
-            {free && <Badge cls="bg-emerald-100 text-emerald-700">FREE-BOOK PICK</Badge>}
+            {back && <Badge cls="bg-accent text-white">BACK IN STOCK</Badge>}
+            {isNew && <Badge cls="bg-olive/10 text-olive">NEW</Badge>}
+            {free && <Badge cls="bg-accent/10 text-accent">FREE-BOOK PICK</Badge>}
           </div>
         </div>
       </div>
 
-      <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 border-t border-slate-100 pt-2 text-xs">
+      <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 border-t border-line pt-2 text-xs">
         <Row k="Format" v={cap(it.format)} />
         {it.language && <Row k="Language" v={cap(it.language)} />}
         {it.genre && <Row k="Genre" v={it.genre} />}
         {it.publisher && <Row k="Publisher" v={it.publisher} />}
-        {it.isbn10 && <Row k="ISBN" v={it.isbn10} />}
-        {it.isbn13 && <Row k="ISBN13" v={it.isbn13} />}
-        {it.releaseDate && <Row k="Release" v={fmtDate(it.releaseDate)} />}
+        {it.isbn10 && <Row k="ISBN" v={it.isbn10} mono />}
+        {it.isbn13 && <Row k="ISBN13" v={it.isbn13} mono />}
+        {it.releaseDate && <Row k="Release" v={fmtDate(it.releaseDate)} mono />}
         <Row k="Lists" v={listNames.join(', ') || '—'} />
       </dl>
     </div>

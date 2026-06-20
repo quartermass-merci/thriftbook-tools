@@ -213,7 +213,7 @@ function setMarker(text: string): void {
     const shadow = host.attachShadow({ mode: 'open' })
     const box = document.createElement('div')
     box.style.cssText =
-      'font:600 12px/1.2 system-ui,-apple-system,sans-serif;background:#212b4f;color:#f2e9d8;' +
+      'font:600 12px/1.2 system-ui,-apple-system,sans-serif;background:#565d4f;color:#faf8f4;' +
       'padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.25);user-select:none;'
     shadow.appendChild(box)
     document.body.appendChild(host)

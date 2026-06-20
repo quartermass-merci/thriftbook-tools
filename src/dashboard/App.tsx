@@ -31,13 +31,15 @@ const FACETS = [
   { id: 'language', label: 'Language' },
 ] as const
 
+const MONO_COLS = new Set(['price', 'watching', 'copies', 'backInStock', 'wishlisted', 'published'])
+
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
 function Chip({ children }: { children: ReactNode }) {
-  return <span className="mr-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{children}</span>
+  return <span className="mr-1 inline-block rounded bg-cream/50 px-1.5 py-0.5 text-[11px] text-muted">{children}</span>
 }
 function Flag({ children }: { children: ReactNode }) {
-  return <span className="mr-1 inline-block rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-700">{children}</span>
+  return <span className="mr-1 inline-block rounded bg-cream/60 px-1 py-0.5 text-[10px] font-medium text-muted">{children}</span>
 }
 function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   if (!st) return null
@@ -46,8 +48,8 @@ function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   if (!back && !isNew) return null
   return (
     <>
-      {back && <span className="mr-1 inline-block rounded bg-green-600 px-1 py-0.5 text-[10px] font-semibold text-white">BACK IN STOCK</span>}
-      {isNew && <span className="mr-1 inline-block rounded bg-blue-100 px-1 py-0.5 text-[10px] font-semibold text-blue-700">NEW</span>}
+      {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[10px] font-semibold text-white">BACK IN STOCK</span>}
+      {isNew && <span className="mr-1 inline-block rounded bg-olive/10 px-1 py-0.5 text-[10px] font-semibold text-olive">NEW</span>}
     </>
   )
 }
@@ -57,19 +59,19 @@ function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { lab
   return (
     <div className="mb-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
-        <span className="text-[10px] text-slate-400">
-          <button onClick={onAll} className="hover:text-indigo-600">All</button>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</span>
+        <span className="text-[10px] text-faint">
+          <button onClick={onAll} className="hover:text-olive">All</button>
           {' · '}
-          <button onClick={onNone} className="hover:text-indigo-600">None</button>
+          <button onClick={onNone} className="hover:text-olive">None</button>
         </span>
       </div>
       <div className="max-h-44 space-y-0.5 overflow-y-auto">
         {options.map(([v, n]) => (
-          <label key={v} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <label key={v} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={!excluded.has(v)} onChange={() => onToggle(v)} />
             <span className="flex-1 truncate">{v}</span>
-            <span className="text-xs text-slate-400">{n}</span>
+            <span className="text-xs text-faint">{n}</span>
           </label>
         ))}
       </div>
@@ -96,17 +98,17 @@ function Sparkline({ points }: { points: number[] }) {
   const up = points[points.length - 1] > points[0]
   return (
     <svg width={w} height={h} className="inline-block align-middle">
-      <polyline points={d} fill="none" stroke={up ? '#dc2626' : '#16a34a'} strokeWidth="1.5" />
+      <polyline points={d} fill="none" stroke={up ? '#db3e36' : '#565d4f'} strokeWidth="1.5" />
     </svg>
   )
 }
 function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[number, number]> }) {
-  if (item.availability !== 'in_stock' || item.lowestPriceCents == null) return <span className="text-slate-400">—</span>
+  if (item.availability !== 'in_stock' || item.lowestPriceCents == null) return <span className="text-faint">—</span>
   const pts = priceArr(history)
-  if (pts.length < 2) return <span className="text-slate-300" title="Building price history…">·</span>
+  if (pts.length < 2) return <span className="text-faint" title="Building price history…">·</span>
   const min = Math.min(...pts), max = Math.max(...pts), cur = item.lowestPriceCents
   const pct = max > min ? (cur - min) / (max - min) : 0.5
-  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-emerald-700' } : pct >= 0.75 ? { t: 'High', c: 'text-rose-700' } : { t: 'Typical', c: 'text-slate-500' }
+  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-olive' } : pct >= 0.75 ? { t: 'High', c: 'text-accent' } : { t: 'Typical', c: 'text-muted' }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <Sparkline points={pts} />
@@ -180,12 +182,12 @@ export function App() {
         key: 'title', label: 'Title', sortVal: (i) => i.title.toLowerCase(),
         render: (i) => (
           <div className="flex gap-2">
-            {i.coverImageUrl ? <img src={i.coverImageUrl} alt="" className="h-10 w-7 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-10 w-7 shrink-0 rounded bg-slate-100" />}
+            {i.coverImageUrl ? <img src={i.coverImageUrl} alt="" className="h-10 w-7 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-10 w-7 shrink-0 rounded bg-cream/50" />}
             <div className="min-w-0">
-              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-slate-800 hover:text-indigo-600">{i.title}</a>
+              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-olive">{i.title}</a>
               <div className="mt-0.5">
                 <FreshBadges st={states[i.id]} cutoff={freshCutoff} />
-                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-700">FREE-BOOK PICK</span>}
+                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent/10 px-1 py-0.5 text-[10px] font-semibold text-accent">FREE-BOOK PICK</span>}
               </div>
             </div>
           </div>
@@ -209,14 +211,14 @@ export function App() {
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
-          ? <span className="whitespace-nowrap text-emerald-600">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
-          : <span className="text-slate-400">Out of stock</span>,
+          ? <span className="whitespace-nowrap text-olive">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
+          : <span className="text-faint">Out of stock</span>,
       },
       { key: 'watching', label: 'Watching', align: 'center', title: 'Other users watching this item', sortVal: (i) => i.othersWatching ?? null, render: (i) => i.othersWatching ?? '—' },
       { key: 'copies', label: 'Copies/mo', align: 'center', title: 'Copies that come into stock per month (0 = very rare)', sortVal: (i) => i.copiesPerMonth ?? null, render: (i) => i.copiesPerMonth ?? '—' },
-      { key: 'backInStock', label: 'Back in stock', title: 'Most recent return to stock (recorded since install)', sortVal: (i) => states[i.id]?.lastBackInStockAt ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(states[i.id]?.lastBackInStockAt)}</span> },
-      { key: 'wishlisted', label: 'Wishlisted', sortVal: (i) => parseDate(i.dateAdded) ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(i.dateAdded)}</span> },
-      { key: 'published', label: 'Published', sortVal: (i) => parseDate(i.releaseDate) ?? null, render: (i) => <span className="whitespace-nowrap text-slate-500">{fmtDate(i.releaseDate)}</span> },
+      { key: 'backInStock', label: 'Back in stock', title: 'Most recent return to stock (recorded since install)', sortVal: (i) => states[i.id]?.lastBackInStockAt ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(states[i.id]?.lastBackInStockAt)}</span> },
+      { key: 'wishlisted', label: 'Wishlisted', sortVal: (i) => parseDate(i.dateAdded) ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(i.dateAdded)}</span> },
+      { key: 'published', label: 'Published', sortVal: (i) => parseDate(i.releaseDate) ?? null, render: (i) => <span className="whitespace-nowrap text-muted">{fmtDate(i.releaseDate)}</span> },
       { key: 'trend', label: 'Price trend', title: 'Current price vs its recorded range', sortVal: (i) => trendPct(i, histories[i.id]), render: (i) => <PriceTrend item={i} history={histories[i.id]} /> },
     ],
     [listName, ceiling, states, freshCutoff, histories],
@@ -310,58 +312,58 @@ export function App() {
   const filtersActive = !!search || !!priceMin || !!priceMax || freeBookOnly || Object.values(excl).some((s) => s.size > 0)
 
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-800">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3">
+    <div className="min-h-screen bg-canvas font-sans text-ink">
+      <header className="flex items-center justify-between border-b border-line px-6 py-3">
         <div>
-          <h1 className="text-lg font-semibold">ThriftBooks Wishlist</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="font-display text-xl font-semibold tracking-tight">ThriftBooks Wishlist</h1>
+          <p className="text-xs text-muted">
             {snapshot ? `Showing ${counts.shown} of ${counts.total} · ${counts.buyable} buyable · ${counts.free} free-book picks` : 'Not synced yet'}
-            {status && <span className="ml-2 text-slate-400">· {status}</span>}
+            {status && <span className="ml-2 text-faint">· {status}</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-sm text-slate-600">
+          <div className="flex items-center gap-1 text-sm text-muted">
             <span>Sort</span>
             <select
               value={sorts[0]?.key ?? 'wishlisted'}
               onChange={(e) => setSorts([{ key: e.target.value, dir: sorts[0]?.dir ?? 'asc' }])}
-              className="rounded border border-slate-300 px-2 py-1"
+              className="rounded border border-line px-2 py-1"
             >
               {cols.map((c) => <option key={c.key} value={c.key}>{c.label === 'Lowest' ? 'Lowest price' : c.label}</option>)}
             </select>
             <button
               onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
               title="Toggle ascending / descending"
-              className="rounded border border-slate-300 px-1.5 py-1"
+              className="rounded border border-line px-1.5 py-1"
             >
               {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
             </button>
           </div>
-          <div className="flex overflow-hidden rounded border border-slate-300 text-sm">
-            <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>List</button>
-            <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Gallery</button>
+          <div className="flex overflow-hidden rounded border border-line text-sm">
+            <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>List</button>
+            <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>Gallery</button>
           </div>
-          <button onClick={sync} className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Sync</button>
+          <button onClick={sync} className="rounded bg-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-olive-700">Sync</button>
         </div>
       </header>
 
       <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-slate-200 p-4">
+        <aside className="w-56 shrink-0 border-r border-line p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-semibold">Filters</span>
-            {filtersActive && <button onClick={resetFilters} className="text-xs text-indigo-600 hover:underline">Reset</button>}
+            {filtersActive && <button onClick={resetFilters} className="text-xs text-olive hover:underline">Reset</button>}
           </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm" />
-          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-sm" />
+          <label className="mb-3 flex cursor-pointer items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={freeBookOnly} onChange={(e) => setFreeBookOnly(e.target.checked)} />
             Free-book picks only
           </label>
           <div className="mb-3">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Price ($)</div>
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Price ($)</div>
             <div className="flex items-center gap-1">
-              <input value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="min" inputMode="decimal" className="w-full rounded border border-slate-300 px-2 py-1 text-sm" />
-              <span className="text-slate-400">–</span>
-              <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="max" inputMode="decimal" className="w-full rounded border border-slate-300 px-2 py-1 text-sm" />
+              <input value={priceMin} onChange={(e) => setPriceMin(e.target.value)} placeholder="min" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-sm" />
+              <span className="text-faint">–</span>
+              <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="max" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-sm" />
             </div>
           </div>
           {FACETS.map((f) => (
@@ -379,7 +381,7 @@ export function App() {
 
         <main className="min-w-0 flex-1 p-5">
           {!snapshot ? (
-            <Empty title="No data yet">Open your <a className="text-indigo-600 underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
+            <Empty title="No data yet">Open your <a className="text-olive underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
           ) : sorted.length === 0 ? (
             <Empty title="No matches">{filtersActive ? 'Nothing matches your filters.' : 'Your synced wishlist is empty.'}</Empty>
           ) : viewMode === 'gallery' ? (
@@ -390,18 +392,18 @@ export function App() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <p className="mb-2 text-[11px] text-slate-400">
+              <p className="mb-2 text-[11px] text-faint">
                 Sorted by {sortSummary}. Click a column to sort; <strong>Shift-click</strong> a second column for a tiebreaker.
               </p>
               <table className="w-full min-w-[1100px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wide text-slate-400">
+                  <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-faint">
                     {cols.map((c) => {
                       const si = sorts.findIndex((s) => s.key === c.key)
                       return (
-                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`cursor-pointer select-none py-2 pr-3 font-medium hover:text-slate-700 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-slate-300' : ''}`}>
+                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
                           {c.label}
-                          {si >= 0 && <span className="ml-0.5 text-indigo-600">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
+                          {si >= 0 && <span className="ml-0.5 text-olive">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
                         </th>
                       )
                     })}
@@ -410,12 +412,12 @@ export function App() {
                 </thead>
                 <tbody>
                   {sorted.map((it) => (
-                    <tr key={it.id} className="border-b border-slate-100 align-top hover:bg-slate-50">
+                    <tr key={it.id} className="border-b border-line align-top hover:bg-cream/30">
                       {cols.map((c) => (
-                        <td key={c.key} className={`py-2 pr-3 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
+                        <td key={c.key} className={`py-2 pr-3 ${MONO_COLS.has(c.key) ? 'font-mono tabular-nums ' : ''}${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
                       ))}
                       <td className="py-2 text-right">
-                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40">
+                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" className="rounded p-1 text-faint hover:bg-accent/10 hover:text-accent disabled:opacity-40">
                           {busy === it.id ? '…' : '🗑'}
                         </button>
                       </td>
@@ -433,9 +435,9 @@ export function App() {
 
 function Empty({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="mx-auto mt-10 max-w-md rounded-lg border border-dashed border-slate-300 p-10 text-center">
-      <p className="text-base font-medium text-slate-600">{title}</p>
-      <p className="mt-2 text-sm text-slate-500">{children}</p>
+    <div className="mx-auto mt-10 max-w-md rounded-lg border border-dashed border-line p-10 text-center">
+      <p className="text-base font-medium text-muted">{title}</p>
+      <p className="mt-2 text-sm text-muted">{children}</p>
     </div>
   )
 }

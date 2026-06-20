@@ -7,9 +7,9 @@ import { triggerSyncFromUI } from '@/shared/sync-trigger'
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded border border-slate-200 p-2">
-      <div className="text-lg font-semibold">{value}</div>
-      <div className="text-[11px] text-slate-500">{label}</div>
+    <div className="rounded border border-line p-2">
+      <div className="font-mono text-lg font-semibold tabular-nums">{value}</div>
+      <div className="text-[11px] text-muted">{label}</div>
     </div>
   )
 }
@@ -39,9 +39,9 @@ export function Popup() {
   }
 
   return (
-    <div className="w-80 p-4 font-sans text-slate-800">
-      <h1 className="text-base font-semibold">ThriftBooks Wishlist</h1>
-      <p className="mt-0.5 text-xs text-slate-500">
+    <div className="w-80 p-4 font-sans text-ink">
+      <h1 className="font-display text-base font-semibold">ThriftBooks Wishlist</h1>
+      <p className="mt-0.5 text-xs text-muted">
         {snapshot ? `Synced ${new Date(snapshot.capturedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not synced yet'}
       </p>
 
@@ -52,15 +52,15 @@ export function Popup() {
       </div>
 
       <div className="mt-3 flex gap-2">
-        <button onClick={openDashboard} className="flex-1 rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <button onClick={openDashboard} className="flex-1 rounded bg-olive px-3 py-2 text-sm font-medium text-white hover:bg-olive-700">
           Open dashboard
         </button>
-        <button onClick={syncNow} className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+        <button onClick={syncNow} className="rounded border border-line px-3 py-2 text-sm text-muted hover:bg-cream/30">
           Sync now
         </button>
       </div>
 
-      {status && <p className="mt-2 text-[11px] text-slate-500">{status}</p>}
+      {status && <p className="mt-2 text-[11px] text-muted">{status}</p>}
     </div>
   )
 }
