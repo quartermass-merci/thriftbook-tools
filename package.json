@@ -1,0 +1,33 @@
+{
+  "name": "thriftbooks-wishlist",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Chrome extension (MV3) that augments the ThriftBooks wishlist: freshness badges, a buyable view, filters/sort, price history, notifications, and a ReadingRewards Free-Book Finder.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/gen-icons.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "idb": "^8.0.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.0",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/chrome": "^0.1.43",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vitest": "^3.2.4"
+  }
+}
