@@ -1,6 +1,6 @@
-// Generates placeholder extension icons (16/32/48/128) as solid PNGs with a
-// simple "book + bookmark" motif. No external deps — pure Node builtins.
-// Replace with real artwork in M6.
+// Generates the extension icons (16/32/48/128) as PNGs with a book + bookmark
+// motif in the PK Lawton brand palette (olive ground, cream pages, red mark).
+// No external deps — pure Node builtins.
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -42,9 +42,9 @@ function png(size) {
   ihdr.writeUInt32BE(h, 4)
   ihdr[8] = 8 // bit depth
   ihdr[9] = 6 // color type: RGBA
-  const bg = [0x21, 0x2b, 0x4f] // deep indigo
-  const fg = [0xf2, 0xe9, 0xd8] // cream "pages"
-  const accent = [0xd9, 0x3e, 0x36] // red bookmark
+  const bg = [0x56, 0x5d, 0x4f] // olive (brand structure)
+  const fg = [0xe0, 0xd3, 0xa8] // brand cream "pages"
+  const accent = [0xdb, 0x3e, 0x36] // brand red bookmark
   const raw = Buffer.alloc((w * 4 + 1) * h)
   let o = 0
   for (let y = 0; y < h; y++) {

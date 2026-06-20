@@ -16,10 +16,8 @@
     "@fontsource/dm-mono": "^5.2.7",
     "@fontsource/instrument-sans": "^5.2.8",
     "@fontsource/playfair-display": "^5.2.8",
-    "idb": "^8.0.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "uplot": "^1.6.32"
+    "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.0",
