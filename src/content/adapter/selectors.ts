@@ -51,6 +51,7 @@ export interface RawListItem {
   AddToCartQuantityAvailable?: number
   AddToCartItemCondition?: string
   AddToCartItemQuality?: string
+  AddToCartItemLanguage?: string
   AddToCartItemIsLP?: boolean
   AddToCartItemIsExLib?: boolean
   AddToCartItemIsMissingDustJacket?: boolean

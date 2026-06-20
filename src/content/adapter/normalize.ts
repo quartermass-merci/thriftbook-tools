@@ -70,6 +70,7 @@ export function normalizeItem(raw: RawListItem, idList: number | string): Wishli
     idListItem: raw.IdListItem,
     releaseDate: raw.ReleaseDate,
     offerCondition: condition,
+    language: raw.AddToCartItemLanguage || undefined,
     isExLibrary: raw.AddToCartItemIsExLib,
     isMissingDustJacket: raw.AddToCartItemIsMissingDustJacket,
     isLargePrint: raw.AddToCartItemIsLP,

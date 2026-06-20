@@ -72,6 +72,8 @@ export interface WishlistItem {
   // --- additional display fields ---
   /** Condition of the buyable (Best Value) offer. */
   offerCondition?: Condition
+  /** Language of the buyable offer (e.g. "english"). */
+  language?: string
   isExLibrary?: boolean
   isMissingDustJacket?: boolean
   isLargePrint?: boolean
