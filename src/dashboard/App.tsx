@@ -271,6 +271,23 @@ export function App() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-sm text-slate-600">
+            <span>Sort</span>
+            <select
+              value={sorts[0]?.key ?? 'wishlisted'}
+              onChange={(e) => setSorts([{ key: e.target.value, dir: sorts[0]?.dir ?? 'asc' }])}
+              className="rounded border border-slate-300 px-2 py-1"
+            >
+              {cols.map((c) => <option key={c.key} value={c.key}>{c.label === 'Lowest' ? 'Lowest price' : c.label}</option>)}
+            </select>
+            <button
+              onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
+              title="Toggle ascending / descending"
+              className="rounded border border-slate-300 px-1.5 py-1"
+            >
+              {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
           <div className="flex overflow-hidden rounded border border-slate-300 text-sm">
             <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>List</button>
             <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Gallery</button>

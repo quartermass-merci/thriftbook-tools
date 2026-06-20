@@ -52,12 +52,14 @@ export function GalleryCard({
       </button>
 
       <div className="flex gap-3">
-        {it.coverImageUrl ? (
-          <img src={it.coverImageUrl} alt="" className="h-32 w-20 shrink-0 rounded object-contain" loading="lazy" />
-        ) : (
-          <div className="h-32 w-20 shrink-0 rounded bg-slate-100" />
-        )}
-        <div className="min-w-0 flex-1 pr-5">
+        <div className="basis-1/2 shrink-0">
+          {it.coverImageUrl ? (
+            <img src={it.coverImageUrl} alt="" className="h-auto w-full rounded object-contain shadow-sm" loading="lazy" />
+          ) : (
+            <div className="aspect-[2/3] w-full rounded bg-slate-100" />
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col pr-5">
           <a
             href={it.productUrl}
             target="_blank"
