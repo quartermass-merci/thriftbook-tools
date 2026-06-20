@@ -311,52 +311,54 @@ export function App() {
   const filtersActive = !!search || !!priceMin || !!priceMax || freeBookOnly || Object.values(excl).some((s) => s.size > 0)
 
   return (
-    <div className="min-h-screen bg-canvas font-sans text-ink">
-      <header className="flex items-center justify-between border-b border-line px-6 py-3">
-        <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight">ThriftBooks Wishlist</h1>
-          <p className="text-sm text-muted">
-            {snapshot ? (
-              <>
-                <span className="font-mono font-semibold text-ink">{counts.shown}</span> of{' '}
-                <span className="font-mono text-ink">{counts.total}</span> ·{' '}
-                <span className="font-mono font-semibold text-ink">{counts.buyable}</span> buyable ·{' '}
-                <span className="font-mono font-semibold text-accent">{counts.free}</span> free-book picks
-              </>
-            ) : (
-              'Not synced yet'
-            )}
-            {status && <span className="ml-2 text-faint">· {status}</span>}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-sm text-muted">
-            <span>Sort</span>
-            <select
-              value={sorts[0]?.key ?? 'wishlisted'}
-              onChange={(e) => setSorts([{ key: e.target.value, dir: sorts[0]?.dir ?? 'asc' }])}
-              className="rounded border border-line px-2 py-1"
-            >
-              {cols.map((c) => <option key={c.key} value={c.key}>{c.label === 'Lowest' ? 'Lowest price' : c.label}</option>)}
-            </select>
-            <button
-              onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
-              title="Toggle ascending / descending"
-              className="rounded border border-line px-1.5 py-1"
-            >
-              {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
-            </button>
+    <div className="flex h-screen flex-col bg-canvas font-sans text-ink">
+      <header className="bg-olive px-6 py-4 text-canvas">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">ThriftBooks Wishlist</h1>
+            <p className="mt-0.5 text-sm text-canvas/75">
+              {snapshot ? (
+                <>
+                  <span className="font-mono font-semibold text-canvas">{counts.shown}</span> of{' '}
+                  <span className="font-mono text-canvas">{counts.total}</span> ·{' '}
+                  <span className="font-mono font-semibold text-canvas">{counts.buyable}</span> buyable ·{' '}
+                  <span className="font-mono font-semibold text-cream">{counts.free}</span> free-book picks
+                </>
+              ) : (
+                'Not synced yet'
+              )}
+              {status && <span className="ml-2 text-canvas/60">· {status}</span>}
+            </p>
           </div>
-          <div className="flex overflow-hidden rounded border border-line text-sm">
-            <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>List</button>
-            <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-olive text-white' : 'text-muted hover:bg-cream/40'}`}>Gallery</button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-sm text-canvas/80">
+              <span>Sort</span>
+              <select
+                value={sorts[0]?.key ?? 'wishlisted'}
+                onChange={(e) => setSorts([{ key: e.target.value, dir: sorts[0]?.dir ?? 'asc' }])}
+                className="rounded border border-white/25 bg-white/10 px-2 py-1 text-canvas"
+              >
+                {cols.map((c) => <option key={c.key} value={c.key} className="text-ink">{c.label === 'Lowest' ? 'Lowest price' : c.label}</option>)}
+              </select>
+              <button
+                onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
+                title="Toggle ascending / descending"
+                className="rounded border border-white/25 px-1.5 py-1 hover:bg-white/10"
+              >
+                {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
+            <div className="flex overflow-hidden rounded border border-white/25 text-sm">
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
+              <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
+            </div>
+            <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-sm hover:bg-white/10">↻ Sync</button>
           </div>
-          <button onClick={sync} className="rounded border border-line px-3 py-1.5 text-sm text-olive hover:bg-cream/40">↻ Sync</button>
         </div>
       </header>
 
-      <div className="flex">
-        <aside className="w-56 shrink-0 border-r border-line p-4">
+      <div className="flex min-h-0 flex-1">
+        <aside className="w-60 shrink-0 overflow-y-auto border-r border-line p-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-semibold">Filters</span>
             {filtersActive && <button onClick={resetFilters} className="text-xs text-olive hover:underline">Reset</button>}
@@ -374,6 +376,7 @@ export function App() {
               <input value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="max" inputMode="decimal" className="w-full rounded border border-line px-2 py-1 text-sm" />
             </div>
           </div>
+          <div className="my-4 border-t border-line" />
           {FACETS.map((f) => (
             <FacetGroup
               key={f.id}
@@ -387,13 +390,13 @@ export function App() {
           ))}
         </aside>
 
-        <main className="min-w-0 flex-1 p-5">
+        <main className="min-w-0 flex-1 overflow-auto p-5">
           {!snapshot ? (
             <Empty title="No data yet">Open your <a className="text-olive underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
           ) : sorted.length === 0 ? (
             <Empty title="No matches">{filtersActive ? 'Nothing matches your filters.' : 'Your synced wishlist is empty.'}</Empty>
           ) : viewMode === 'gallery' ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
               {sorted.map((it) => (
                 <GalleryCard key={it.id} it={it} st={states[it.id]} ceiling={ceiling} freshCutoff={freshCutoff} listNames={listsOf(it)} onDelete={onDelete} busy={busy === it.id} />
               ))}
@@ -409,13 +412,13 @@ export function App() {
                     {cols.map((c) => {
                       const si = sorts.findIndex((s) => s.key === c.key)
                       return (
-                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
+                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
                           {c.label}
                           {si >= 0 && <span className="ml-0.5 text-olive">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
                         </th>
                       )
                     })}
-                    <th className="w-8 py-2"></th>
+                    <th className="sticky top-0 z-10 bg-canvas w-8 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>

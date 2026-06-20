@@ -64,7 +64,7 @@ export function GalleryCard({
             href={it.productUrl}
             target="_blank"
             rel="noreferrer"
-            className="block text-base font-extrabold leading-tight text-ink hover:text-olive"
+            className="block font-display text-lg font-bold leading-tight text-ink hover:text-olive"
           >
             {it.title}
           </a>
