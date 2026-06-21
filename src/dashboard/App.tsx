@@ -42,6 +42,16 @@ const conditionRank = (s: string) => {
   return i < 0 ? CONDITION_ORDER.length : i
 }
 
+/** True when a search result's author contains every word of the searched author —
+ *  cuts keyword-match false positives (searching "Anne Carson" returning a generic
+ *  poetry anthology that isn't hers). */
+function authorMatches(resultAuthor: string | undefined, query: string): boolean {
+  if (!resultAuthor) return false
+  const r = resultAuthor.toLowerCase()
+  const tokens = query.toLowerCase().split(/[^a-z]+/).filter((t) => t.length >= 2)
+  return tokens.length > 0 && tokens.every((t) => new RegExp(`\\b${t}`).test(r))
+}
+
 type ScanDim = 'off' | 'overall' | 'category' | 'author' | 'publisher'
 type Taste = {
   author: Map<string, number>
@@ -404,7 +414,7 @@ export function App() {
     if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
     const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
     const eligible = ack.candidates
-      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId))
+      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId) && authorMatches(c.author, c.via ?? ''))
       .sort((a, b) => (taste.author.get(b.via ?? '') ?? 0) - (taste.author.get(a.via ?? '') ?? 0) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
     setCandidates(eligible)
     setDiscoverStatus(eligible.length ? `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list` : `No in-stock books ≤ ${formatCents(ceiling)} from your authors right now.`)
