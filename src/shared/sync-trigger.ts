@@ -2,6 +2,7 @@
 // only thing that can fetch the API (same-origin), so we message a thriftbooks
 // list tab — trying each match, reloading a stale one, or opening a fresh tab.
 import type { SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, Msg } from '@/shared/messaging/protocol'
+import type { DiscoverQuery } from '@/shared/types'
 
 const LIST_TAB_MATCH = 'https://www.thriftbooks.com/list/*'
 
@@ -76,7 +77,7 @@ export async function triggerEnrichFromUI(): Promise<EnrichAck> {
 }
 
 /** Run a Discover catalog scan (search those queries) via a list tab's content script. */
-export async function triggerDiscoverFromUI(queries: string[]): Promise<DiscoverAck> {
+export async function triggerDiscoverFromUI(queries: DiscoverQuery[]): Promise<DiscoverAck> {
   let tabs: chrome.tabs.Tab[] = []
   try {
     tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })

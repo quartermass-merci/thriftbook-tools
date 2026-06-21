@@ -1,5 +1,5 @@
 // Typed message contracts between the content script, service worker, and UI surfaces.
-import type { SearchCandidate } from '@/shared/types'
+import type { SearchCandidate, DiscoverQuery } from '@/shared/types'
 
 export interface NotifyItem {
   id: string
@@ -17,7 +17,7 @@ export type Msg =
   | { type: 'NOTIFY'; items: NotifyItem[] }
   | { type: 'TEST_NOTIFY' }
   | { type: 'ENRICH_NOW' }
-  | { type: 'DISCOVER'; queries: string[] }
+  | { type: 'DISCOVER'; queries: DiscoverQuery[] }
   | { type: 'ADD_TO_WISHLIST'; productUrl: string; wishlistId: string }
 
 export interface SyncAck {

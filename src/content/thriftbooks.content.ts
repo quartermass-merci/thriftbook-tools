@@ -7,7 +7,7 @@ import { diffSnapshot } from '@/shared/diff/snapshotDiff'
 import type { DiffEvents } from '@/shared/diff/snapshotDiff'
 import { broadcast } from '@/shared/messaging/bus'
 import { isFreeBookEligible } from '@/shared/types'
-import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment, SearchCandidate } from '@/shared/types'
+import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment, SearchCandidate, DiscoverQuery } from '@/shared/types'
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
 import { fetchSearch, findEditionId } from './adapter/search'
@@ -251,17 +251,17 @@ async function deleteItem(idListItem: number, id: string): Promise<DeleteAck> {
 }
 
 /** Discover: fetch + parse browse results for a set of taste queries (authors), deduped. */
-async function discover(queries: string[]): Promise<DiscoverAck> {
+async function discover(queries: DiscoverQuery[]): Promise<DiscoverAck> {
   try {
     const seen = new Set<string>()
     const all: SearchCandidate[] = []
-    for (const q of queries.slice(0, 12)) {
+    for (const q of queries.slice(0, 20)) {
       let cands: SearchCandidate[] = []
-      try { cands = await fetchSearch(q) } catch { cands = [] }
-      for (const c of cands) {
+      try { cands = await fetchSearch(q.term) } catch { cands = [] }
+      for (const c of cands.slice(0, 25)) {
         if (seen.has(c.workId)) continue
         seen.add(c.workId)
-        all.push({ ...c, via: q })
+        all.push({ ...c, via: q.label, viaKind: q.kind })
       }
       await new Promise((r) => setTimeout(r, 400))
     }

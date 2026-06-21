@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { WishlistSnapshot, WishlistItem, Settings, ItemState, SearchCandidate } from '@/shared/types'
+import type { WishlistSnapshot, WishlistItem, Settings, ItemState, SearchCandidate, DiscoverQuery } from '@/shared/types'
 import { isFreeBookEligible } from '@/shared/types'
 import { getSnapshot, getSettings, getItemStates, getPriceHistory, STORAGE_KEYS } from '@/shared/storage/repo'
 import { onKvChange } from '@/shared/storage/kv'
@@ -50,6 +50,23 @@ function authorMatches(resultAuthor: string | undefined, query: string): boolean
   const r = resultAuthor.toLowerCase()
   const tokens = query.toLowerCase().split(/[^a-z]+/).filter((t) => t.length >= 2)
   return tokens.length > 0 && tokens.every((t) => new RegExp(`\\b${t}`).test(r))
+}
+
+// Curated category bucket -> a ThriftBooks search keyword (broader than author/press).
+const CATEGORY_QUERY: Record<string, string> = {
+  'Literary Fiction': 'literary fiction',
+  'Sci-Fi': 'science fiction',
+  Fantasy: 'fantasy',
+  'Horror/Weird': 'horror',
+  'Crime/Mystery': 'mystery',
+  Poetry: 'poetry',
+  'Drama/Plays': 'plays',
+  'Biography/Memoir': 'memoir',
+  History: 'history',
+  'Philosophy/Theory': 'philosophy',
+  Cooking: 'cookbook',
+  'Art/Design': 'art',
+  'Kids/YA': 'young adult',
 }
 
 type ScanDim = 'off' | 'overall' | 'category' | 'author' | 'publisher'
@@ -179,6 +196,8 @@ export function App() {
   const [addList, setAddList] = useState('')
   const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+  const [includeCats, setIncludeCats] = useState(false)
+  const [dedupeOpen, setDedupeOpen] = useState(false)
 
   useEffect(() => {
     void getSnapshot().then(setSnapshot)
@@ -371,6 +390,18 @@ export function App() {
 
   const enrichedCount = useMemo(() => items.filter((i) => categorize(i) != null).length, [items])
   const visibleCols = useMemo(() => cols.filter((c) => !hiddenCols.has(c.key)), [cols, hiddenCols])
+  const dupeGroups = useMemo(() => {
+    const norm = (s?: string) => (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    const m = new Map<string, WishlistItem[]>()
+    for (const it of items) {
+      const key = `${norm(it.title)}|${norm(it.author)}`
+      if (key === '|') continue
+      const arr = m.get(key) ?? []
+      arr.push(it)
+      m.set(key, arr)
+    }
+    return [...m.values()].filter((g) => g.length > 1).sort((a, b) => b.length - a.length)
+  }, [items])
 
   const onSort = (key: string, additive: boolean) => {
     setSorts((prev) => {
@@ -404,21 +435,35 @@ export function App() {
     setEnriching(false)
     setStatus(ack.ok ? `Enriched ${ack.enriched ?? 0} more books` : ack.error ?? 'Could not enrich')
   }
-  const runDiscover = async () => {
-    const topAuthors = [...taste.author.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([a]) => a)
-    if (!topAuthors.length) { setDiscoverStatus('Sync your wishlist first.'); return }
+  const runDiscover = async (catsOverride?: boolean) => {
+    const cats = catsOverride ?? includeCats
+    const top = (m: Map<string, number>, n: number, min = 1) =>
+      [...m.entries()].filter(([, c]) => c >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k)
+    const queries: DiscoverQuery[] = [
+      ...top(taste.author, 10).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
+      ...top(taste.publisher, 6, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
+      ...(cats ? top(taste.category, 4).map((c): DiscoverQuery => ({ kind: 'category', term: CATEGORY_QUERY[c] ?? c, label: c })) : []),
+    ]
+    if (!queries.length) { setDiscoverStatus('Sync your wishlist first.'); return }
     setDiscovering(true)
-    setDiscoverStatus(`Scanning ${topAuthors.length} of your authors…`)
-    const ack = await triggerDiscoverFromUI(topAuthors)
+    setDiscoverStatus(`Scanning your authors, presses${cats ? ' & categories' : ''}…`)
+    const ack = await triggerDiscoverFromUI(queries)
     setDiscovering(false)
     if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
     const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
+    const KIND_ORDER: Record<string, number> = { author: 0, publisher: 1, category: 2 }
+    const affinity = (c: SearchCandidate) => {
+      const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
+      return m.get(c.via ?? '') ?? 0
+    }
     const eligible = ack.candidates
-      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId) && authorMatches(c.author, c.via ?? ''))
-      .sort((a, b) => (taste.author.get(b.via ?? '') ?? 0) - (taste.author.get(a.via ?? '') ?? 0) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
+      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId))
+      .filter((c) => c.viaKind !== 'author' || authorMatches(c.author, c.via ?? ''))
+      .sort((a, b) => (KIND_ORDER[a.viaKind ?? 'author'] - KIND_ORDER[b.viaKind ?? 'author']) || affinity(b) - affinity(a) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
     setCandidates(eligible)
-    setDiscoverStatus(eligible.length ? `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list` : `No in-stock books ≤ ${formatCents(ceiling)} from your authors right now.`)
+    setDiscoverStatus(eligible.length ? `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list` : `No in-stock books ≤ ${formatCents(ceiling)} from your taste right now.`)
   }
+  const onToggleCats = (v: boolean) => { setIncludeCats(v); void runDiscover(v) }
   const onAdd = async (c: SearchCandidate) => {
     const list = addList || snapshot?.subLists[0]?.id
     if (!list) { setDiscoverStatus('No wishlist found to add to.'); return }
@@ -461,10 +506,16 @@ export function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open && !candidates.length && !discovering) void runDiscover() }}
+              onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open) { setDedupeOpen(false); if (!candidates.length && !discovering) void runDiscover() } }}
               className="rounded bg-accent px-3 py-1.5 text-[15px] font-semibold text-ink hover:brightness-95"
             >
               {discoverOpen ? '✕ Close' : '✨ Discover ≤$7'}
+            </button>
+            <button
+              onClick={() => { const open = !dedupeOpen; setDedupeOpen(open); if (open) setDiscoverOpen(false) }}
+              className="rounded border border-white/25 px-3 py-1.5 text-[15px] text-canvas hover:bg-white/10"
+            >
+              {dedupeOpen ? '✕ Close' : `Dedupe${dupeGroups.length ? ` (${dupeGroups.length})` : ''}`}
             </button>
             <div className="flex items-center gap-1 text-[15px] text-canvas/80">
               <span>Sort</span>
@@ -538,7 +589,9 @@ export function App() {
         </aside>
 
         <main className="min-w-0 flex-1 overflow-auto p-5">
-          {discoverOpen ? (
+          {dedupeOpen ? (
+            <DedupePanel groups={dupeGroups} onDelete={onDelete} busy={busy} listsOf={listsOf} />
+          ) : discoverOpen ? (
             <DiscoverPanel
               candidates={candidates}
               discovering={discovering}
@@ -551,6 +604,8 @@ export function App() {
               addingId={addingId}
               addedIds={addedIds}
               onRescan={runDiscover}
+              includeCats={includeCats}
+              onToggleCats={onToggleCats}
               taste={taste}
             />
           ) : !snapshot ? (
@@ -698,7 +753,46 @@ function ColumnsMenu({ cols, hidden, onToggle, onShowAll }: { cols: Col[]; hidde
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, taste }: {
+function DedupePanel({ groups, onDelete, busy, listsOf }: {
+  groups: WishlistItem[][]
+  onDelete: (it: WishlistItem) => void
+  busy: string | null
+  listsOf: (it: WishlistItem) => string[]
+}) {
+  return (
+    <div>
+      <div className="mb-4 border-b-4 border-accent pb-3">
+        <h2 className="font-display text-xl font-bold text-ink">Duplicates</h2>
+        <p className="text-[13px] text-muted">{groups.length ? `${groups.length} book${groups.length === 1 ? '' : 's'} appear more than once — delete the copies you don’t want to keep.` : 'No duplicate titles on your wishlist. 🎉'}</p>
+      </div>
+      <ol className="space-y-3">
+        {groups.map((g) => (
+          <li key={g[0].id} className="rounded-lg border border-line bg-surface p-3">
+            <div className="mb-1 flex items-baseline gap-2">
+              <span className="font-display text-lg font-bold text-ink">{g[0].title}</span>
+              <span className="text-[13px] text-muted">{g[0].author ?? ''}</span>
+              <span className="ml-auto rounded bg-accent/30 px-1.5 py-0.5 text-[12px] font-semibold text-ink">{g.length} copies</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {g.map((it) => (
+                <li key={it.id} className="flex items-center gap-3 py-1.5 text-[13px]">
+                  <span className="w-24 shrink-0 capitalize text-muted">{it.format?.replace('_', ' ') ?? '—'}</span>
+                  <span className="w-24 shrink-0 text-muted">{it.availability === 'in_stock' ? cap(it.offerCondition) : 'Out of stock'}</span>
+                  <span className="w-16 shrink-0 font-mono tabular-nums text-ink">{it.availability === 'in_stock' ? formatCents(it.lowestPriceCents) : '—'}</span>
+                  <span className="flex-1 truncate text-faint">{listsOf(it).join(', ')}</span>
+                  <a href={it.productUrl} target="_blank" rel="noreferrer" className="shrink-0 text-teal hover:underline">view ↗</a>
+                  <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" className="shrink-0 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, includeCats, onToggleCats, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
@@ -710,6 +804,8 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
   addingId: string | null
   addedIds: Set<string>
   onRescan: () => void
+  includeCats: boolean
+  onToggleCats: (v: boolean) => void
   taste: Taste
 }) {
   return (
@@ -717,9 +813,13 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-4 border-accent pb-3">
         <div>
           <h2 className="font-display text-xl font-bold text-ink">Discover ≤ {formatCents(ceiling)}</h2>
-          <p className="text-[13px] text-muted">{status || 'Books by authors you collect, not yet on your list.'}</p>
+          <p className="text-[13px] text-muted">{status || 'Books by the authors & presses you collect, not yet on your list.'}</p>
         </div>
-        <div className="flex items-center gap-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Also scan your top genres (broader)">
+            <input type="checkbox" checked={includeCats} onChange={(e) => onToggleCats(e.target.checked)} />
+            Categories too
+          </label>
           <span className="text-muted">Add to</span>
           <select value={addList || lists[0]?.id || ''} onChange={(e) => setAddList(e.target.value)} className="rounded border border-line px-2 py-1 text-ink">
             {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -734,7 +834,10 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
       ) : (
         <ol className="space-y-2">
           {candidates.map((c, i) => {
-            const aff = taste.author.get(c.via ?? '') ?? 0
+            const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
+            const aff = m.get(c.via ?? '') ?? 0
+            const why = c.viaKind === 'publisher' ? 'from this press' : c.viaKind === 'category' ? 'in this category' : 'by this author'
+            const chipCls = c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal'
             const added = addedIds.has(c.workId)
             return (
               <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
@@ -743,7 +846,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
                 <div className="min-w-0 flex-1">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal">{c.title}</a>
                   <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
-                  <div className="mt-1 inline-flex rounded bg-teal/10 px-1.5 py-0.5 text-[12px] font-medium text-teal">{c.via}{aff > 1 ? ` · ${aff} on your list` : ''}</div>
+                  <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>

@@ -95,6 +95,15 @@ export interface SubList {
   itemCount: number
 }
 
+export type DiscoverKind = 'author' | 'publisher' | 'category'
+
+/** One thing to search for in Discover: what to search (term) + how to label/credit it. */
+export interface DiscoverQuery {
+  kind: DiscoverKind
+  term: string // the ThriftBooks search string
+  label: string // display name + taste-affinity key (e.g. the category bucket)
+}
+
 /** A book found via catalog search — used by Discover (may not be on the wishlist). */
 export interface SearchCandidate {
   workId: string
@@ -105,8 +114,9 @@ export interface SearchCandidate {
   priceCents?: number
   format?: string
   productUrl: string
-  /** The wishlist author/query this candidate was surfaced under. */
+  /** The wishlist author/publisher/category this candidate was surfaced under. */
   via?: string
+  viaKind?: DiscoverKind
 }
 
 export interface WishlistSnapshot {
