@@ -11,6 +11,7 @@ import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationT
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
 import { fetchSearch, findEditionId } from './adapter/search'
+import { normalizePublisher } from '@/shared/util/publisher'
 import { formatCents } from '@/shared/util/money'
 import type { Msg, SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, NotifyItem } from '@/shared/messaging/protocol'
 
@@ -254,18 +255,45 @@ async function deleteItem(idListItem: number, id: string): Promise<DeleteAck> {
 async function discover(queries: DiscoverQuery[]): Promise<DiscoverAck> {
   try {
     const seen = new Set<string>()
-    const all: SearchCandidate[] = []
+    const passthrough: SearchCandidate[] = [] // author + category (filtered dashboard-side)
+    const pubByPress = new Map<string, SearchCandidate[]>()
     for (const q of queries.slice(0, 20)) {
       let cands: SearchCandidate[] = []
       try { cands = await fetchSearch(q.term) } catch { cands = [] }
       for (const c of cands.slice(0, 25)) {
         if (seen.has(c.workId)) continue
         seen.add(c.workId)
-        all.push({ ...c, via: q.label, viaKind: q.kind })
+        const tagged: SearchCandidate = { ...c, via: q.label, viaKind: q.kind }
+        if (q.kind === 'publisher') {
+          const arr = pubByPress.get(q.label) ?? []
+          arr.push(tagged)
+          pubByPress.set(q.label, arr)
+        } else {
+          passthrough.push(tagged)
+        }
       }
       await new Promise((r) => setTimeout(r, 400))
     }
-    return { ok: true, candidates: all }
+    // Publisher search is keyword-noisy ("Verso" matches "Verses"/"verso"), so verify
+    // each candidate's real publisher from its work page. Interleave presses so the
+    // verification budget covers the top results of every press, not just the first.
+    const groups = [...pubByPress.values()]
+    const maxLen = groups.reduce((m, g) => Math.max(m, g.length), 0)
+    const order: SearchCandidate[] = []
+    for (let i = 0; i < maxLen; i++) for (const g of groups) if (g[i]) order.push(g[i])
+    const verified: SearchCandidate[] = []
+    let checks = 0
+    for (const c of order) {
+      if (checks >= 30) break
+      checks++
+      setMarker(`Verifying presses… ${checks}`)
+      try {
+        const e = await fetchEnrichment(c.productUrl)
+        if (e?.publisher && normalizePublisher(e.publisher) === c.via) verified.push(c)
+      } catch { /* drop on fetch error */ }
+      await new Promise((r) => setTimeout(r, 250))
+    }
+    return { ok: true, candidates: [...passthrough, ...verified] }
   } catch (e) {
     return { ok: false, error: String(e) }
   }

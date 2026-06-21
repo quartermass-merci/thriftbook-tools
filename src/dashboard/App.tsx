@@ -446,7 +446,7 @@ export function App() {
     ]
     if (!queries.length) { setDiscoverStatus('Sync your wishlist first.'); return }
     setDiscovering(true)
-    setDiscoverStatus(`Scanning your authors, presses${cats ? ' & categories' : ''}…`)
+    setDiscoverStatus(`Scanning authors & verifying presses${cats ? ' + categories' : ''}… (a few seconds)`)
     const ack = await triggerDiscoverFromUI(queries)
     setDiscovering(false)
     if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
