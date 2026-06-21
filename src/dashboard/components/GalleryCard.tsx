@@ -4,6 +4,7 @@ import { isFreeBookEligible } from '@/shared/types'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate } from '@/shared/util/date'
 import { categorize } from '@/shared/taxonomy'
+import { normalizePublisher } from '@/shared/util/publisher'
 
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
@@ -95,7 +96,7 @@ export function GalleryCard({
         <Row k="Format" v={cap(it.format)} />
         {it.language && <Row k="Language" v={cap(it.language)} />}
         {category && <Row k="Category" v={category} />}
-        {it.publisher && <Row k="Publisher" v={it.publisher} />}
+        {it.publisher && <Row k="Publisher" v={normalizePublisher(it.publisher)} />}
         {it.isbn10 && <Row k="ISBN" v={it.isbn10} mono />}
         {it.isbn13 && <Row k="ISBN13" v={it.isbn13} mono />}
         {it.releaseDate && <Row k="Release" v={fmtDate(it.releaseDate)} mono />}

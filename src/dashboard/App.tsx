@@ -8,6 +8,7 @@ import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
 import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI } from '@/shared/sync-trigger'
 import { GalleryCard } from './components/GalleryCard'
 import { categorize, categoryRank } from '@/shared/taxonomy'
+import { normalizePublisher } from '@/shared/util/publisher'
 
 type SortDir = 'asc' | 'desc'
 interface SortSpec { key: string; dir: SortDir }
@@ -151,6 +152,16 @@ export function App() {
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [enriching, setEnriching] = useState(false)
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem('tbw-hidden-cols') || '[]')) } catch { return new Set() }
+  })
+  const toggleCol = (key: string) => setHiddenCols((prev) => {
+    const n = new Set(prev)
+    if (n.has(key)) n.delete(key); else n.add(key)
+    localStorage.setItem('tbw-hidden-cols', JSON.stringify([...n]))
+    return n
+  })
+  const showAllCols = () => { setHiddenCols(new Set()); localStorage.setItem('tbw-hidden-cols', '[]') }
 
   useEffect(() => {
     void getSnapshot().then(setSnapshot)
@@ -182,7 +193,7 @@ export function App() {
     const category = new Map<string, number>()
     for (const it of items) {
       if (it.author) author.set(it.author, (author.get(it.author) ?? 0) + 1)
-      if (it.publisher) publisher.set(it.publisher, (publisher.get(it.publisher) ?? 0) + 1)
+      const np = normalizePublisher(it.publisher); if (np) publisher.set(np, (publisher.get(np) ?? 0) + 1)
       const c = categorize(it)
       if (c) category.set(c, (category.get(c) ?? 0) + 1)
     }
@@ -192,7 +203,8 @@ export function App() {
 
   const scanScore = (it: WishlistItem): number => {
     const a = it.author ? taste.author.get(it.author) ?? 0 : 0
-    const p = it.publisher ? taste.publisher.get(it.publisher) ?? 0 : 0
+    const np = normalizePublisher(it.publisher)
+    const p = np ? taste.publisher.get(np) ?? 0 : 0
     const c = categorize(it)
     const cn = c ? taste.category.get(c) ?? 0 : 0
     switch (scanDim) {
@@ -211,7 +223,7 @@ export function App() {
       case 'availability': return [it.availability === 'in_stock' ? 'In stock' : 'Out of stock']
       case 'format': return [it.format ? cap(it.format) : 'Other']
       case 'condition': return it.availability === 'in_stock' && it.offerCondition ? [cap(it.offerCondition)] : []
-      case 'publisher': return it.publisher ? [it.publisher] : []
+      case 'publisher': { const p = normalizePublisher(it.publisher); return p ? [p] : [] }
       case 'language': return [it.language ? cap(it.language) : 'Unknown']
       default: return []
     }
@@ -254,7 +266,7 @@ export function App() {
       { key: 'format', label: 'Format', sortVal: (i) => i.format ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.format?.replace('_', ' ') ?? '—'}</span> },
       { key: 'language', label: 'Language', sortVal: (i) => i.language ?? null, render: (i) => <span className="whitespace-nowrap capitalize">{i.language ? cap(i.language) : '—'}</span> },
       { key: 'category', label: 'Category', sortVal: (i) => { const c = categorize(i); return c ? categoryRank(c) : null }, render: (i) => <span className="whitespace-nowrap">{categorize(i) ?? '—'}</span> },
-      { key: 'publisher', label: 'Publisher', sortVal: (i) => i.publisher?.toLowerCase() ?? null, render: (i) => <span className="whitespace-nowrap">{i.publisher ?? '—'}</span> },
+      { key: 'publisher', label: 'Publisher', sortVal: (i) => normalizePublisher(i.publisher)?.toLowerCase() ?? null, render: (i) => <span className="whitespace-nowrap">{normalizePublisher(i.publisher) ?? '—'}</span> },
       {
         key: 'condition', label: 'Condition', sortVal: (i) => (i.availability === 'in_stock' ? i.offerCondition ?? null : null),
         render: (i) => (
@@ -341,6 +353,7 @@ export function App() {
   }), [items, filtered, ceiling])
 
   const enrichedCount = useMemo(() => items.filter((i) => categorize(i) != null).length, [items])
+  const visibleCols = useMemo(() => cols.filter((c) => !hiddenCols.has(c.key)), [cols, hiddenCols])
 
   const onSort = (key: string, additive: boolean) => {
     setSorts((prev) => {
@@ -427,6 +440,7 @@ export function App() {
               <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
               <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
             </div>
+            {viewMode === 'list' && <ColumnsMenu cols={cols} hidden={hiddenCols} onToggle={toggleCol} onShowAll={showAllCols} />}
             <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
           </div>
         </div>
@@ -504,7 +518,7 @@ export function App() {
               <table className="w-full min-w-[1600px] border-collapse text-[15px]">
                 <thead>
                   <tr className="border-b border-line text-left text-[13px] uppercase tracking-wide text-faint">
-                    {cols.map((c) => {
+                    {visibleCols.map((c) => {
                       const si = sorts.findIndex((s) => s.key === c.key)
                       return (
                         <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
@@ -519,7 +533,7 @@ export function App() {
                 <tbody>
                   {sorted.map((it) => (
                     <tr key={it.id} className="border-b border-line align-top hover:bg-cream/30">
-                      {cols.map((c) => (
+                      {visibleCols.map((c) => (
                         <td key={c.key} className={`py-2 pr-3 ${MONO_COLS.has(c.key) ? 'font-mono tabular-nums ' : ''}${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
                       ))}
                       <td className="py-2 text-right">
@@ -583,11 +597,12 @@ function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) =>
 
 function reasonFor(it: WishlistItem, dim: ScanDim, taste: Taste): string {
   const a = it.author ? taste.author.get(it.author) ?? 0 : 0
-  const p = it.publisher ? taste.publisher.get(it.publisher) ?? 0 : 0
+  const np = normalizePublisher(it.publisher)
+  const p = np ? taste.publisher.get(np) ?? 0 : 0
   const c = categorize(it)
   const cn = c ? taste.category.get(c) ?? 0 : 0
   const authorTxt = a > 1 ? `${a - 1} more by ${it.author} on your list` : `Only ${it.author ?? 'this'} title you want`
-  const pubTxt = it.publisher ? `${p} from ${it.publisher} on your list` : 'Publisher not enriched yet'
+  const pubTxt = np ? `${p} from ${np} on your list` : 'Publisher not enriched yet'
   const catTxt = c ? `${c} · ${cn} in your wishlist` : 'Not categorized yet'
   if (dim === 'author') return authorTxt
   if (dim === 'publisher') return pubTxt
@@ -597,6 +612,28 @@ function reasonFor(it: WishlistItem, dim: ScanDim, taste: Taste): string {
   if (c && cN >= pN) return catTxt
   if (p > 0) return pubTxt
   return c ? catTxt : 'On your wishlist'
+}
+
+function ColumnsMenu({ cols, hidden, onToggle, onShowAll }: { cols: Col[]; hidden: Set<string>; onToggle: (key: string) => void; onShowAll: () => void }) {
+  return (
+    <details className="relative">
+      <summary className="cursor-pointer list-none rounded border border-white/25 px-3 py-1.5 text-[15px] text-canvas hover:bg-white/10 [&::-webkit-details-marker]:hidden">Columns ▾</summary>
+      <div className="absolute right-0 z-30 mt-1 w-52 rounded border border-line bg-surface p-2 text-ink shadow-lg">
+        <div className="mb-1 flex items-center justify-between px-1 text-[12px] uppercase tracking-wide text-faint">
+          <span>Show columns</span>
+          <button onClick={onShowAll} className="hover:text-teal">All</button>
+        </div>
+        <div className="max-h-80 space-y-0.5 overflow-y-auto">
+          {cols.map((c) => (
+            <label key={c.key} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-[13px] hover:bg-cream/40">
+              <input type="checkbox" checked={!hidden.has(c.key)} onChange={() => onToggle(c.key)} />
+              <span>{c.label === 'Lowest' ? 'Lowest price' : c.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
 }
 
 function ScanResults({ items, dim, taste }: { items: WishlistItem[]; dim: ScanDim; taste: Taste }) {
