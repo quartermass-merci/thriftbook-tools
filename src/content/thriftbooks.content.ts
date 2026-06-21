@@ -7,11 +7,12 @@ import { diffSnapshot } from '@/shared/diff/snapshotDiff'
 import type { DiffEvents } from '@/shared/diff/snapshotDiff'
 import { broadcast } from '@/shared/messaging/bus'
 import { isFreeBookEligible } from '@/shared/types'
-import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment } from '@/shared/types'
+import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment, SearchCandidate } from '@/shared/types'
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
+import { fetchSearch, findEditionId } from './adapter/search'
 import { formatCents } from '@/shared/util/money'
-import type { Msg, SyncAck, DeleteAck, EnrichAck, NotifyItem } from '@/shared/messaging/protocol'
+import type { Msg, SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, NotifyItem } from '@/shared/messaging/protocol'
 
 const SYNC_THROTTLE_MS = 90_000
 
@@ -216,6 +217,14 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
     void enrichAll().then(sendResponse)
     return true
   }
+  if (msg?.type === 'DISCOVER') {
+    void discover(msg.queries).then(sendResponse)
+    return true
+  }
+  if (msg?.type === 'ADD_TO_WISHLIST') {
+    void addToWishlist(msg.productUrl, msg.wishlistId).then(sendResponse)
+    return true
+  }
   return undefined
 })
 
@@ -235,6 +244,47 @@ async function deleteItem(idListItem: number, id: string): Promise<DeleteAck> {
       await updateSnapshot({ ...snap, items })
       broadcast({ type: 'SNAPSHOT_UPDATED', capturedAt: snap.capturedAt, itemCount: items.length })
     }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: String(e) }
+  }
+}
+
+/** Discover: fetch + parse browse results for a set of taste queries (authors), deduped. */
+async function discover(queries: string[]): Promise<DiscoverAck> {
+  try {
+    const seen = new Set<string>()
+    const all: SearchCandidate[] = []
+    for (const q of queries.slice(0, 12)) {
+      let cands: SearchCandidate[] = []
+      try { cands = await fetchSearch(q) } catch { cands = [] }
+      for (const c of cands) {
+        if (seen.has(c.workId)) continue
+        seen.add(c.workId)
+        all.push({ ...c, via: q })
+      }
+      await new Promise((r) => setTimeout(r, 400))
+    }
+    return { ok: true, candidates: all }
+  } catch (e) {
+    return { ok: false, error: String(e) }
+  }
+}
+
+/** Add a book to a wishlist: fetch its work page to resolve the edition id, then POST. */
+async function addToWishlist(productUrl: string, wishlistId: string): Promise<AddAck> {
+  try {
+    const wres = await fetch(productUrl, { credentials: 'include' })
+    if (!wres.ok) return { ok: false, error: `book page HTTP ${wres.status}` }
+    const idEdition = findEditionId(await wres.text())
+    if (!idEdition) return { ok: false, error: 'Could not find an edition id on that book page.' }
+    const res = await fetch('https://www.thriftbooks.com/api/ListItem/AddToWishlist', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `idEdition=${encodeURIComponent(idEdition)}&wishlistId=${encodeURIComponent(wishlistId)}`,
+    })
+    if (!res.ok) return { ok: false, error: `add HTTP ${res.status}` }
     return { ok: true }
   } catch (e) {
     return { ok: false, error: String(e) }

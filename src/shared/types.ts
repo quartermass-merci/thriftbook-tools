@@ -95,6 +95,20 @@ export interface SubList {
   itemCount: number
 }
 
+/** A book found via catalog search — used by Discover (may not be on the wishlist). */
+export interface SearchCandidate {
+  workId: string
+  isbn?: string
+  title: string
+  author?: string
+  coverImageUrl?: string
+  priceCents?: number
+  format?: string
+  productUrl: string
+  /** The wishlist author/query this candidate was surfaced under. */
+  via?: string
+}
+
 export interface WishlistSnapshot {
   capturedAt: number // epoch ms
   dataSourceKind: DataSourceKind

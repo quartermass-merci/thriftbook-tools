@@ -1,4 +1,5 @@
 // Typed message contracts between the content script, service worker, and UI surfaces.
+import type { SearchCandidate } from '@/shared/types'
 
 export interface NotifyItem {
   id: string
@@ -16,6 +17,8 @@ export type Msg =
   | { type: 'NOTIFY'; items: NotifyItem[] }
   | { type: 'TEST_NOTIFY' }
   | { type: 'ENRICH_NOW' }
+  | { type: 'DISCOVER'; queries: string[] }
+  | { type: 'ADD_TO_WISHLIST'; productUrl: string; wishlistId: string }
 
 export interface SyncAck {
   ok: boolean
@@ -31,5 +34,16 @@ export interface DeleteAck {
 export interface EnrichAck {
   ok: boolean
   enriched?: number
+  error?: string
+}
+
+export interface DiscoverAck {
+  ok: boolean
+  candidates?: SearchCandidate[]
+  error?: string
+}
+
+export interface AddAck {
+  ok: boolean
   error?: string
 }

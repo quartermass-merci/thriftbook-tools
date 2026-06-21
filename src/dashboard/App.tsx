@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { WishlistSnapshot, WishlistItem, Settings, ItemState } from '@/shared/types'
+import type { WishlistSnapshot, WishlistItem, Settings, ItemState, SearchCandidate } from '@/shared/types'
 import { isFreeBookEligible } from '@/shared/types'
 import { getSnapshot, getSettings, getItemStates, getPriceHistory, STORAGE_KEYS } from '@/shared/storage/repo'
 import { onKvChange } from '@/shared/storage/kv'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
-import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI } from '@/shared/sync-trigger'
+import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI, triggerDiscoverFromUI, addToWishlistViaUI } from '@/shared/sync-trigger'
 import { GalleryCard } from './components/GalleryCard'
 import { categorize, categoryRank } from '@/shared/taxonomy'
 import { normalizePublisher } from '@/shared/util/publisher'
@@ -162,6 +162,13 @@ export function App() {
     return n
   })
   const showAllCols = () => { setHiddenCols(new Set()); localStorage.setItem('tbw-hidden-cols', '[]') }
+  const [discoverOpen, setDiscoverOpen] = useState(false)
+  const [discovering, setDiscovering] = useState(false)
+  const [candidates, setCandidates] = useState<SearchCandidate[]>([])
+  const [discoverStatus, setDiscoverStatus] = useState('')
+  const [addList, setAddList] = useState('')
+  const [addingId, setAddingId] = useState<string | null>(null)
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     void getSnapshot().then(setSnapshot)
@@ -387,6 +394,30 @@ export function App() {
     setEnriching(false)
     setStatus(ack.ok ? `Enriched ${ack.enriched ?? 0} more books` : ack.error ?? 'Could not enrich')
   }
+  const runDiscover = async () => {
+    const topAuthors = [...taste.author.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([a]) => a)
+    if (!topAuthors.length) { setDiscoverStatus('Sync your wishlist first.'); return }
+    setDiscovering(true)
+    setDiscoverStatus(`Scanning ${topAuthors.length} of your authors…`)
+    const ack = await triggerDiscoverFromUI(topAuthors)
+    setDiscovering(false)
+    if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
+    const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
+    const eligible = ack.candidates
+      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId))
+      .sort((a, b) => (taste.author.get(b.via ?? '') ?? 0) - (taste.author.get(a.via ?? '') ?? 0) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
+    setCandidates(eligible)
+    setDiscoverStatus(eligible.length ? `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list` : `No in-stock books ≤ ${formatCents(ceiling)} from your authors right now.`)
+  }
+  const onAdd = async (c: SearchCandidate) => {
+    const list = addList || snapshot?.subLists[0]?.id
+    if (!list) { setDiscoverStatus('No wishlist found to add to.'); return }
+    setAddingId(c.workId)
+    const ack = await addToWishlistViaUI(c.productUrl, list)
+    setAddingId(null)
+    if (ack.ok) { setAddedIds((p) => new Set(p).add(c.workId)); setDiscoverStatus(`Added “${c.title}”`) }
+    else setDiscoverStatus(ack.error ?? 'Add failed')
+  }
   const onDelete = async (it: WishlistItem) => {
     if (it.idListItem == null) { setStatus('Re-sync first — this item is missing its list-item id.'); return }
     if (!window.confirm(`Delete "${it.title}" from your ThriftBooks wishlist?\n\nThis removes it from your account and can't be undone from here.`)) return
@@ -419,6 +450,12 @@ export function App() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open && !candidates.length && !discovering) void runDiscover() }}
+              className="rounded bg-accent px-3 py-1.5 text-[15px] font-semibold text-ink hover:brightness-95"
+            >
+              {discoverOpen ? '✕ Close' : '✨ Discover ≤$7'}
+            </button>
             <div className="flex items-center gap-1 text-[15px] text-canvas/80">
               <span>Sort</span>
               <select
@@ -491,7 +528,22 @@ export function App() {
         </aside>
 
         <main className="min-w-0 flex-1 overflow-auto p-5">
-          {!snapshot ? (
+          {discoverOpen ? (
+            <DiscoverPanel
+              candidates={candidates}
+              discovering={discovering}
+              status={discoverStatus}
+              ceiling={ceiling}
+              lists={snapshot?.subLists ?? []}
+              addList={addList}
+              setAddList={setAddList}
+              onAdd={onAdd}
+              addingId={addingId}
+              addedIds={addedIds}
+              onRescan={runDiscover}
+              taste={taste}
+            />
+          ) : !snapshot ? (
             <Empty title="No data yet">Open your <a className="text-teal underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
           ) : (
             <>
@@ -633,6 +685,70 @@ function ColumnsMenu({ cols, hidden, onToggle, onShowAll }: { cols: Col[]; hidde
         </div>
       </div>
     </details>
+  )
+}
+
+function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, taste }: {
+  candidates: SearchCandidate[]
+  discovering: boolean
+  status: string
+  ceiling: number
+  lists: { id: string; name: string }[]
+  addList: string
+  setAddList: (v: string) => void
+  onAdd: (c: SearchCandidate) => void
+  addingId: string | null
+  addedIds: Set<string>
+  onRescan: () => void
+  taste: Taste
+}) {
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-4 border-accent pb-3">
+        <div>
+          <h2 className="font-display text-xl font-bold text-ink">Discover ≤ {formatCents(ceiling)}</h2>
+          <p className="text-[13px] text-muted">{status || 'Books by authors you collect, not yet on your list.'}</p>
+        </div>
+        <div className="flex items-center gap-2 text-[13px]">
+          <span className="text-muted">Add to</span>
+          <select value={addList || lists[0]?.id || ''} onChange={(e) => setAddList(e.target.value)} className="rounded border border-line px-2 py-1 text-ink">
+            {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          <button onClick={onRescan} disabled={discovering} className="rounded border border-line px-3 py-1.5 text-teal hover:bg-cream/40 disabled:opacity-50">{discovering ? 'Scanning…' : 'Rescan'}</button>
+        </div>
+      </div>
+      {discovering ? (
+        <p className="mt-10 text-center text-[15px] text-muted">Searching ThriftBooks for ≤ {formatCents(ceiling)} books by your authors…</p>
+      ) : candidates.length === 0 ? (
+        <Empty title="Nothing under the ceiling yet">No in-stock books ≤ {formatCents(ceiling)} from your top authors right now. Hit Rescan later, or raise the free-book ceiling in Settings.</Empty>
+      ) : (
+        <ol className="space-y-2">
+          {candidates.map((c, i) => {
+            const aff = taste.author.get(c.via ?? '') ?? 0
+            const added = addedIds.has(c.workId)
+            return (
+              <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+                <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
+                {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />}
+                <div className="min-w-0 flex-1">
+                  <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal">{c.title}</a>
+                  <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
+                  <div className="mt-1 inline-flex rounded bg-teal/10 px-1.5 py-0.5 text-[12px] font-medium text-teal">{c.via}{aff > 1 ? ` · ${aff} on your list` : ''}</div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>
+                  {added ? (
+                    <span className="text-[13px] font-semibold text-teal">✓ Added</span>
+                  ) : (
+                    <button onClick={() => onAdd(c)} disabled={addingId === c.workId} className="mt-0.5 rounded bg-teal px-2.5 py-1 text-[13px] font-medium text-white hover:bg-teal-700 disabled:opacity-50">{addingId === c.workId ? 'Adding…' : '+ Add'}</button>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </div>
   )
 }
 

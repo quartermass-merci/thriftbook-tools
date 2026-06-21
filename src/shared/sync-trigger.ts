@@ -1,7 +1,7 @@
 // Robust "sync now" used by the popup and dashboard. The content script is the
 // only thing that can fetch the API (same-origin), so we message a thriftbooks
 // list tab — trying each match, reloading a stale one, or opening a fresh tab.
-import type { SyncAck, DeleteAck, EnrichAck, Msg } from '@/shared/messaging/protocol'
+import type { SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, Msg } from '@/shared/messaging/protocol'
 
 const LIST_TAB_MATCH = 'https://www.thriftbooks.com/list/*'
 
@@ -73,4 +73,44 @@ export async function triggerEnrichFromUI(): Promise<EnrichAck> {
     }
   }
   return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then click Enrich again.' }
+}
+
+/** Run a Discover catalog scan (search those queries) via a list tab's content script. */
+export async function triggerDiscoverFromUI(queries: string[]): Promise<DiscoverAck> {
+  let tabs: chrome.tabs.Tab[] = []
+  try {
+    tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
+  } catch {
+    tabs = []
+  }
+  for (const t of tabs) {
+    if (t.id == null) continue
+    try {
+      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'DISCOVER', queries } as Msg)) as DiscoverAck
+      if (ack) return ack
+    } catch {
+      /* no content script here — try the next */
+    }
+  }
+  return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then run Discover again.' }
+}
+
+/** Add a found book to one of your wishlists via a list tab's content script. */
+export async function addToWishlistViaUI(productUrl: string, wishlistId: string): Promise<AddAck> {
+  let tabs: chrome.tabs.Tab[] = []
+  try {
+    tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
+  } catch {
+    tabs = []
+  }
+  for (const t of tabs) {
+    if (t.id == null) continue
+    try {
+      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'ADD_TO_WISHLIST', productUrl, wishlistId } as Msg)) as AddAck
+      if (ack) return ack
+    } catch {
+      /* no content script here — try the next */
+    }
+  }
+  return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then try Add again.' }
 }
