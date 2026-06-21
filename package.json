@@ -14,13 +14,16 @@
   },
   "dependencies": {
     "@fontsource/dm-mono": "^5.2.7",
+    "@fontsource/eb-garamond": "^5.2.7",
     "@fontsource/instrument-sans": "^5.2.8",
+    "@fontsource/libre-franklin": "^5.2.8",
     "@fontsource/playfair-display": "^5.2.8",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.2.4",
     "@types/chrome": "^0.1.43",
     "@types/react": "^19.2.14",

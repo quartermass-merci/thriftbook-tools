@@ -52,7 +52,7 @@ export function Popup() {
       </div>
 
       <div className="mt-3 flex gap-2">
-        <button onClick={openDashboard} className="flex-1 rounded bg-olive px-3 py-2 text-[15px] font-medium text-white hover:bg-olive-700">
+        <button onClick={openDashboard} className="flex-1 rounded bg-teal px-3 py-2 text-[15px] font-medium text-white hover:bg-teal-700">
           Open dashboard
         </button>
         <button onClick={syncNow} className="rounded border border-line px-3 py-2 text-[15px] text-muted hover:bg-cream/30">

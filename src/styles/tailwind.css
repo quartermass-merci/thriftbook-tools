@@ -1,33 +1,35 @@
 @import "tailwindcss";
-@import "@fontsource/instrument-sans/400.css";
-@import "@fontsource/instrument-sans/500.css";
-@import "@fontsource/instrument-sans/600.css";
-@import "@fontsource/playfair-display/600.css";
+/* Headers: Libre Franklin (Franklin Gothic). Body: EB Garamond. Numbers: DM Mono. */
+@import "@fontsource/libre-franklin/600.css";
+@import "@fontsource/libre-franklin/700.css";
+@import "@fontsource/eb-garamond/400.css";
+@import "@fontsource/eb-garamond/500.css";
+@import "@fontsource/eb-garamond/600.css";
 @import "@fontsource/dm-mono/400.css";
 @import "@fontsource/dm-mono/500.css";
 
-/* PK Lawton / Sister Merci brand palette — academic monograph, anti-SaaS.
-   olive = structure/primary, red = urgency only, warm neutrals (no slate). */
+/* "thriftbook tools" brand — ThriftBooks-aligned.
+   teal = primary / links / structure, azure = ink, yellow = accent (bars, badges, stars). */
 @theme {
-  --color-canvas: #faf8f4;
+  --color-canvas: #f5f8f8;     /* cool off-white */
   --color-surface: #ffffff;
-  --color-ink: #362318;
-  --color-olive: #565d4f;
-  --color-olive-700: #454b3f;
-  --color-cream: #e0d3a8;
-  --color-accent: #db3e36;
-  --color-line: #e7e1d6;
-  --color-muted: #7c7568;
-  --color-faint: #ada594;
-  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Playfair Display", Georgia, serif;
+  --color-ink: #213f4c;        /* dark azure — body text */
+  --color-teal: #088778;       /* vivid turquoise — primary / links */
+  --color-teal-700: #066a5e;   /* darker teal — hover */
+  --color-cream: #fdeeba;      /* soft yellow — subtle fills / hovers */
+  --color-accent: #fdcb2d;     /* yellow — header bars, badges, stars */
+  --color-line: #dce5e6;       /* cool border */
+  --color-muted: #5d6f76;      /* cool muted text */
+  --color-faint: #93a4a9;      /* cool faint text */
+  --font-sans: "EB Garamond", Georgia, serif;
+  --font-display: "Libre Franklin", "Franklin Gothic", Arial, sans-serif;
   --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Olive checkboxes/inputs instead of browser-default blue. */
+/* Teal checkboxes/inputs instead of browser-default blue. */
 input[type='checkbox'],
 input[type='radio'] {
-  accent-color: var(--color-olive);
+  accent-color: var(--color-teal);
 }
 
 body {

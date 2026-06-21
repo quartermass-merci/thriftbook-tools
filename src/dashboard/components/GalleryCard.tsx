@@ -48,7 +48,7 @@ export function GalleryCard({
         onClick={() => onDelete(it)}
         disabled={busy}
         title="Delete from wishlist"
-        className="absolute right-1.5 top-1.5 rounded p-1 text-faint hover:bg-accent/10 hover:text-accent disabled:opacity-40"
+        className="absolute right-1.5 top-1.5 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40"
       >
         {busy ? '…' : '🗑'}
       </button>
@@ -66,7 +66,7 @@ export function GalleryCard({
             href={it.productUrl}
             target="_blank"
             rel="noreferrer"
-            className="block font-display text-lg font-bold leading-tight text-ink hover:text-olive"
+            className="block font-display text-lg font-bold leading-tight text-ink hover:text-teal"
           >
             {it.title}
           </a>
@@ -84,9 +84,9 @@ export function GalleryCard({
             )}
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {back && <Badge cls="bg-accent text-white">BACK IN STOCK</Badge>}
-            {isNew && <Badge cls="bg-olive/10 text-olive">NEW</Badge>}
-            {free && <Badge cls="bg-accent/10 text-accent">FREE-BOOK PICK</Badge>}
+            {back && <Badge cls="bg-accent text-ink">BACK IN STOCK</Badge>}
+            {isNew && <Badge cls="bg-teal/10 text-teal">NEW</Badge>}
+            {free && <Badge cls="bg-accent text-ink">FREE-BOOK PICK</Badge>}
           </div>
         </div>
       </div>

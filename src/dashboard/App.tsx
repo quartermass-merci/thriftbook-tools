@@ -66,8 +66,8 @@ function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   if (!back && !isNew) return null
   return (
     <>
-      {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-white">BACK IN STOCK</span>}
-      {isNew && <span className="mr-1 inline-block rounded bg-olive/10 px-1 py-0.5 text-[12px] font-semibold text-olive">NEW</span>}
+      {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">BACK IN STOCK</span>}
+      {isNew && <span className="mr-1 inline-block rounded bg-teal/10 px-1 py-0.5 text-[12px] font-semibold text-teal">NEW</span>}
     </>
   )
 }
@@ -79,9 +79,9 @@ function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { lab
       <div className="mb-1 flex items-center justify-between">
         <span className="text-[13px] font-semibold uppercase tracking-wide text-faint">{label}</span>
         <span className="text-[12px] text-faint">
-          <button onClick={onAll} className="hover:text-olive">All</button>
+          <button onClick={onAll} className="hover:text-teal">All</button>
           {' · '}
-          <button onClick={onNone} className="hover:text-olive">None</button>
+          <button onClick={onNone} className="hover:text-teal">None</button>
         </span>
       </div>
       <div className="max-h-44 space-y-0.5 overflow-y-auto">
@@ -116,7 +116,7 @@ function Sparkline({ points }: { points: number[] }) {
   const up = points[points.length - 1] > points[0]
   return (
     <svg width={w} height={h} className="inline-block align-middle">
-      <polyline points={d} fill="none" stroke={up ? '#db3e36' : '#565d4f'} strokeWidth="1.5" />
+      <polyline points={d} fill="none" stroke={up ? '#213f4c' : '#088778'} strokeWidth="1.5" />
     </svg>
   )
 }
@@ -126,7 +126,7 @@ function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[nu
   if (pts.length < 2) return <span className="text-faint" title="Builds as prices change over time">—</span>
   const min = Math.min(...pts), max = Math.max(...pts), cur = item.lowestPriceCents
   const pct = max > min ? (cur - min) / (max - min) : 0.5
-  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-olive' } : pct >= 0.75 ? { t: 'High', c: 'text-accent' } : { t: 'Typical', c: 'text-muted' }
+  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-teal' } : pct >= 0.75 ? { t: 'High', c: 'text-ink' } : { t: 'Typical', c: 'text-muted' }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <Sparkline points={pts} />
@@ -241,10 +241,10 @@ export function App() {
           <div className="flex gap-2">
             {i.coverImageUrl ? <img src={i.coverImageUrl} alt="" className="h-10 w-7 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-10 w-7 shrink-0 rounded bg-cream/50" />}
             <div className="min-w-0">
-              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-olive">{i.title}</a>
+              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-teal">{i.title}</a>
               <div className="mt-0.5">
                 <FreshBadges st={states[i.id]} cutoff={freshCutoff} />
-                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent/10 px-1 py-0.5 text-[12px] font-semibold text-accent">FREE-BOOK PICK</span>}
+                {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">FREE-BOOK PICK</span>}
               </div>
             </div>
           </div>
@@ -270,7 +270,7 @@ export function App() {
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
-          ? <span className="whitespace-nowrap text-olive">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
+          ? <span className="whitespace-nowrap text-teal">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
           : <span className="text-faint">Out of stock</span>,
       },
       { key: 'watching', label: 'Watching', align: 'center', title: 'Other users watching this item', sortVal: (i) => i.othersWatching ?? null, render: (i) => i.othersWatching ?? '—' },
@@ -387,7 +387,7 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col bg-canvas font-sans text-ink">
-      <header className="bg-olive px-6 py-4 text-canvas">
+      <header className="border-b-4 border-accent bg-teal px-6 py-4 text-canvas">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">ThriftBooks Wishlist</h1>
@@ -397,7 +397,7 @@ export function App() {
                   <span className="font-mono font-semibold text-canvas">{counts.shown}</span> of{' '}
                   <span className="font-mono text-canvas">{counts.total}</span> ·{' '}
                   <span className="font-mono font-semibold text-canvas">{counts.buyable}</span> buyable ·{' '}
-                  <span className="font-mono font-semibold text-cream">{counts.free}</span> free-book picks
+                  <span className="font-mono font-semibold text-accent">{counts.free}</span> free-book picks
                 </>
               ) : (
                 'Not synced yet'
@@ -424,8 +424,8 @@ export function App() {
               </button>
             </div>
             <div className="flex overflow-hidden rounded border border-white/25 text-[15px]">
-              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
-              <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-olive' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
+              <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
             </div>
             <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
           </div>
@@ -436,16 +436,16 @@ export function App() {
         <aside className="w-60 shrink-0 overflow-y-auto border-r border-line p-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[15px] font-semibold">Filters</span>
-            {filtersActive && <button onClick={resetFilters} className="text-[13px] text-olive hover:underline">Reset</button>}
+            {filtersActive && <button onClick={resetFilters} className="text-[13px] text-teal hover:underline">Reset</button>}
           </div>
           {snapshot && enrichedCount < items.length && (
             <div className="mb-3 rounded border border-line bg-cream/20 p-2 text-[13px]">
               <div className="flex items-center justify-between">
                 <span className="text-muted">Categorized <span className="font-mono">{enrichedCount}</span> / <span className="font-mono">{items.length}</span></span>
-                <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-olive hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
+                <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-teal hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-line">
-                <div className="h-full rounded bg-olive transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
+                <div className="h-full rounded bg-teal transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
               </div>
             </div>
           )}
@@ -478,7 +478,7 @@ export function App() {
 
         <main className="min-w-0 flex-1 overflow-auto p-5">
           {!snapshot ? (
-            <Empty title="No data yet">Open your <a className="text-olive underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
+            <Empty title="No data yet">Open your <a className="text-teal underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
           ) : (
             <>
               {freeBookOnly && <ScanBar dim={scanDim} onPick={setScanDim} count={filtered.length} />}
@@ -509,7 +509,7 @@ export function App() {
                       return (
                         <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
                           {c.label}
-                          {si >= 0 && <span className="ml-0.5 text-olive">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
+                          {si >= 0 && <span className="ml-0.5 text-teal">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
                         </th>
                       )
                     })}
@@ -523,7 +523,7 @@ export function App() {
                         <td key={c.key} className={`py-2 pr-3 ${MONO_COLS.has(c.key) ? 'font-mono tabular-nums ' : ''}${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
                       ))}
                       <td className="py-2 text-right">
-                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" className="rounded p-1 text-faint hover:bg-accent/10 hover:text-accent disabled:opacity-40">
+                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" className="rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">
                           {busy === it.id ? '…' : '🗑'}
                         </button>
                       </td>
@@ -558,9 +558,9 @@ function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) =>
     ['publisher', 'By publisher'],
   ]
   return (
-    <div className="mb-4 rounded-lg border border-olive/30 bg-olive/5 p-4">
+    <div className="mb-4 rounded-lg border border-teal/30 bg-teal/5 p-4">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-display text-lg font-semibold text-olive">Free-credit scan</span>
+        <span className="font-display text-lg font-semibold text-teal">Free-credit scan</span>
         <span className="text-[13px] text-muted">Rank your {count} eligible {count === 1 ? 'book' : 'books'} by what best fits your taste:</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -568,13 +568,13 @@ function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) =>
           <button
             key={d}
             onClick={() => onPick(dim === d ? 'off' : d)}
-            className={`rounded-full border px-3 py-1 text-[13px] ${dim === d ? 'border-olive bg-olive text-canvas' : 'border-line text-ink hover:bg-cream/40'}`}
+            className={`rounded-full border px-3 py-1 text-[13px] ${dim === d ? 'border-teal bg-teal text-canvas' : 'border-line text-ink hover:bg-cream/40'}`}
           >
             {label}
           </button>
         ))}
         {dim !== 'off' && (
-          <button onClick={() => onPick('off')} className="rounded-full px-3 py-1 text-[13px] text-muted hover:text-accent">Clear</button>
+          <button onClick={() => onPick('off')} className="rounded-full px-3 py-1 text-[13px] text-muted hover:text-teal">Clear</button>
         )}
       </div>
     </div>
@@ -611,9 +611,9 @@ function ScanResults({ items, dim, taste }: { items: WishlistItem[]; dim: ScanDi
             <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />
           )}
           <div className="min-w-0 flex-1">
-            <a href={it.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-olive">{it.title}</a>
+            <a href={it.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal">{it.title}</a>
             <div className="text-[13px] text-muted">{authorSortName(it.author) || '—'}</div>
-            <div className="mt-1 inline-flex rounded bg-olive/10 px-1.5 py-0.5 text-[12px] font-medium text-olive">{reasonFor(it, dim, taste)}</div>
+            <div className="mt-1 inline-flex rounded bg-teal/10 px-1.5 py-0.5 text-[12px] font-medium text-teal">{reasonFor(it, dim, taste)}</div>
           </div>
           <div className="shrink-0 text-right">
             <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(it.lowestPriceCents)}</div>
