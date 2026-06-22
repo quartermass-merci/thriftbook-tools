@@ -9,10 +9,10 @@ const icons = {
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'ThriftBooks Wishlist Enhancer',
-  version: '0.1.0',
+  name: 'Thriftbook Tools',
+  version: '1.0.0',
   description:
-    'Augments the ThriftBooks wishlist: freshness badges, a buyable view, filters/sort, price history, notifications, and a Free-Book Finder.',
+    'Power tools for your ThriftBooks wishlist: filters, price history, a free-book finder, a deals scanner, and dedupe. Unofficial.',
   minimum_chrome_version: '116',
   icons,
   action: {

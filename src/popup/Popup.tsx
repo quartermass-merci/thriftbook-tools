@@ -40,7 +40,7 @@ export function Popup() {
 
   return (
     <div className="w-80 p-4 font-sans text-ink">
-      <h1 className="font-display text-lg font-semibold">ThriftBooks Wishlist</h1>
+      <h1 className="font-display text-lg font-semibold">Thriftbook Tools</h1>
       <p className="mt-0.5 text-[13px] text-muted">
         {snapshot ? `Synced ${new Date(snapshot.capturedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not synced yet'}
       </p>

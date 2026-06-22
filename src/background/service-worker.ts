@@ -49,7 +49,7 @@ const notifTargets = new Map<string, string>()
 chrome.runtime.onMessage.addListener((msg: Msg) => {
   if (msg?.type === 'NOTIFY') fireNotifications(msg.items)
   if (msg?.type === 'TEST_NOTIFY') {
-    fireNotifications([{ id: 'test', title: 'Test notification', url: chrome.runtime.getURL('src/dashboard/index.html'), kind: 'ThriftBooks Wishlist', detail: 'Notifications are working ✓' }])
+    fireNotifications([{ id: 'test', title: 'Test notification', url: chrome.runtime.getURL('src/dashboard/index.html'), kind: 'Thriftbook Tools', detail: 'Notifications are working ✓' }])
   }
   return undefined
 })

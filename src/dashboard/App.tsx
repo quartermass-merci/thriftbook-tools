@@ -496,7 +496,7 @@ export function App() {
       <header className="border-b-4 border-accent bg-teal-700 px-6 py-4 text-canvas">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">ThriftBooks Wishlist</h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Thriftbook Tools</h1>
             <p className="mt-0.5 text-[15px] text-canvas">
               {snapshot ? (
                 <>

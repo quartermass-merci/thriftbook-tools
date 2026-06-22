@@ -36,7 +36,7 @@ export function Options() {
 
   return (
     <div className="mx-auto max-w-xl p-8 font-sans text-ink">
-      <h1 className="font-display text-xl font-semibold">ThriftBooks Wishlist — Settings</h1>
+      <h1 className="font-display text-xl font-semibold">Thriftbook Tools — Settings</h1>
 
       <Row label="Check interval" hint="How often to re-check while Chrome is open." htmlFor="opt-interval">
         <input id="opt-interval" type="number" min={1} value={s.alarmMinutes} onChange={(e) => set({ alarmMinutes: Math.max(1, Number(e.target.value) || 5) })} className="w-20 rounded border border-line px-2 py-1 text-[15px]" />
