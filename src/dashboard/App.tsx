@@ -530,7 +530,7 @@ export function App() {
                 onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
                 title="Toggle ascending / descending"
                 aria-label="Toggle sort direction"
-                className="rounded border border-white/25 px-1.5 py-1 hover:bg-white/10"
+                className="rounded border border-white/25 px-2 py-1.5 hover:bg-white/10"
               >
                 {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
               </button>
@@ -655,7 +655,7 @@ export function App() {
                         <td key={c.key} className={`py-2 pr-3 ${MONO_COLS.has(c.key) ? 'font-mono tabular-nums ' : ''}${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
                       ))}
                       <td className="py-2 text-right">
-                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" aria-label={`Delete ${it.title} from wishlist`} className="rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">
+                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" aria-label={`Delete ${it.title} from wishlist`} className="rounded p-1.5 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">
                           {busy === it.id ? '…' : '🗑'}
                         </button>
                       </td>
@@ -782,7 +782,7 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
                   <span className="w-16 shrink-0 font-mono tabular-nums text-ink">{it.availability === 'in_stock' ? formatCents(it.lowestPriceCents) : '—'}</span>
                   <span className="flex-1 truncate text-faint">{listsOf(it).join(', ')}</span>
                   <a href={it.productUrl} target="_blank" rel="noreferrer" className="shrink-0 text-teal-700 hover:underline">view ↗</a>
-                  <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" aria-label={`Delete this copy of ${it.title}`} className="shrink-0 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
+                  <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" aria-label={`Delete this copy of ${it.title}`} className="shrink-0 rounded p-1.5 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
                 </li>
               ))}
             </ul>
