@@ -19,13 +19,14 @@ export function parseSearchResults(html: string): SearchCandidate[] {
     if (seen.has(workId)) continue
     seen.add(workId)
     const amount = tile.querySelector('.SearchResultListItem-dollarAmount')?.textContent?.trim()
+    const priceNum = amount ? parseFloat(amount.replace(/[^\d.]/g, '')) : NaN
     out.push({
       workId,
       isbn: href.match(/#isbn=([\w-]+)/)?.[1],
       title: link.textContent?.trim() ?? '',
       author: tile.querySelector('a[itemprop="author"]')?.textContent?.trim() || undefined,
       coverImageUrl: tile.querySelector('.SearchResultTileItem-photo img')?.getAttribute('src') || undefined,
-      priceCents: amount ? Math.round(parseFloat(amount.replace(/[^\d.]/g, '')) * 100) : undefined,
+      priceCents: Number.isFinite(priceNum) ? Math.round(priceNum * 100) : undefined,
       format: tile.querySelector('.SearchResultTileItem-format strong')?.textContent?.trim() || undefined,
       productUrl: BASE + href.split('?')[0].split('#')[0],
     })

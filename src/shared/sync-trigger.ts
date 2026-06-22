@@ -6,6 +6,16 @@ import type { DiscoverQuery } from '@/shared/types'
 
 const LIST_TAB_MATCH = 'https://www.thriftbooks.com/list/*'
 
+/** sendMessage with a timeout, so a hung or context-invalidated content script
+ *  can't leave the UI spinning forever — it rejects and we fall through to the
+ *  "open your wishlist tab" guidance instead. */
+function sendWithTimeout<T>(tabId: number, msg: Msg, ms: number): Promise<T> {
+  return Promise.race([
+    chrome.tabs.sendMessage(tabId, msg) as Promise<T>,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('No response (timed out)')), ms)),
+  ])
+}
+
 export async function triggerSyncFromUI(): Promise<SyncAck> {
   let tabs: chrome.tabs.Tab[] = []
   try {
@@ -18,7 +28,7 @@ export async function triggerSyncFromUI(): Promise<SyncAck> {
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'SYNC_NOW' } as Msg)) as SyncAck
+      const ack = await sendWithTimeout<SyncAck>(t.id, { type: 'SYNC_NOW' }, 60_000)
       if (ack?.ok) return ack
     } catch {
       /* no content script in this tab — try the next */
@@ -47,7 +57,7 @@ export async function deleteItemViaUI(idListItem: number, id: string): Promise<D
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'DELETE_ITEM', idListItem, id } as Msg)) as DeleteAck
+      const ack = await sendWithTimeout<DeleteAck>(t.id, { type: 'DELETE_ITEM', idListItem, id }, 20_000)
       if (ack) return ack
     } catch {
       /* no content script in this tab — try the next */
@@ -67,7 +77,7 @@ export async function triggerEnrichFromUI(): Promise<EnrichAck> {
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'ENRICH_NOW' } as Msg)) as EnrichAck
+      const ack = await sendWithTimeout<EnrichAck>(t.id, { type: 'ENRICH_NOW' }, 600_000)
       if (ack) return ack
     } catch {
       /* no content script here — try the next */
@@ -87,7 +97,7 @@ export async function triggerDiscoverFromUI(queries: DiscoverQuery[]): Promise<D
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'DISCOVER', queries } as Msg)) as DiscoverAck
+      const ack = await sendWithTimeout<DiscoverAck>(t.id, { type: 'DISCOVER', queries }, 180_000)
       if (ack) return ack
     } catch {
       /* no content script here — try the next */
@@ -107,7 +117,7 @@ export async function addToWishlistViaUI(productUrl: string, wishlistId: string)
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = (await chrome.tabs.sendMessage(t.id, { type: 'ADD_TO_WISHLIST', productUrl, wishlistId } as Msg)) as AddAck
+      const ack = await sendWithTimeout<AddAck>(t.id, { type: 'ADD_TO_WISHLIST', productUrl, wishlistId }, 30_000)
       if (ack) return ack
     } catch {
       /* no content script here — try the next */
