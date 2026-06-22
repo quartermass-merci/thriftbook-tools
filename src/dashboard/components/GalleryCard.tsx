@@ -49,6 +49,7 @@ export function GalleryCard({
         onClick={() => onDelete(it)}
         disabled={busy}
         title="Delete from wishlist"
+        aria-label={`Delete ${it.title} from wishlist`}
         className="absolute right-1.5 top-1.5 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40"
       >
         {busy ? '…' : '🗑'}

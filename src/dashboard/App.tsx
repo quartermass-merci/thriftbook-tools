@@ -529,6 +529,7 @@ export function App() {
               <button
                 onClick={() => setSorts((p) => [{ key: p[0]?.key ?? 'wishlisted', dir: p[0]?.dir === 'asc' ? 'desc' : 'asc' }])}
                 title="Toggle ascending / descending"
+                aria-label="Toggle sort direction"
                 className="rounded border border-white/25 px-1.5 py-1 hover:bg-white/10"
               >
                 {sorts[0]?.dir === 'asc' ? '↑' : '↓'}
@@ -561,7 +562,7 @@ export function App() {
               </div>
             </div>
           )}
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-[15px]" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title / author" aria-label="Search by title or author" className="mb-3 w-full rounded border border-line px-2 py-1.5 text-[15px]" />
           <label className="mb-3 flex cursor-pointer items-center gap-2 text-[15px] text-ink">
             <input type="checkbox" checked={freeBookOnly} onChange={(e) => { setFreeBookOnly(e.target.checked); if (!e.target.checked) setScanDim('off') }} />
             Free-book picks only
@@ -638,7 +639,7 @@ export function App() {
                     {visibleCols.map((c) => {
                       const si = sorts.findIndex((s) => s.key === c.key)
                       return (
-                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
+                        <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSort(c.key, e.shiftKey) } }} tabIndex={0} aria-sort={si >= 0 ? (sorts[si].dir === 'asc' ? 'ascending' : 'descending') : undefined} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
                           {c.label}
                           {si >= 0 && <span className="ml-0.5 text-teal-700">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
                         </th>
@@ -654,7 +655,7 @@ export function App() {
                         <td key={c.key} className={`py-2 pr-3 ${MONO_COLS.has(c.key) ? 'font-mono tabular-nums ' : ''}${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}>{c.render(it)}</td>
                       ))}
                       <td className="py-2 text-right">
-                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" className="rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">
+                        <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete from wishlist" aria-label={`Delete ${it.title} from wishlist`} className="rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">
                           {busy === it.id ? '…' : '🗑'}
                         </button>
                       </td>
@@ -781,7 +782,7 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
                   <span className="w-16 shrink-0 font-mono tabular-nums text-ink">{it.availability === 'in_stock' ? formatCents(it.lowestPriceCents) : '—'}</span>
                   <span className="flex-1 truncate text-faint">{listsOf(it).join(', ')}</span>
                   <a href={it.productUrl} target="_blank" rel="noreferrer" className="shrink-0 text-teal-700 hover:underline">view ↗</a>
-                  <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" className="shrink-0 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
+                  <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" aria-label={`Delete this copy of ${it.title}`} className="shrink-0 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
                 </li>
               ))}
             </ul>
