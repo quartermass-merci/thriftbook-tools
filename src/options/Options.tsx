@@ -69,9 +69,9 @@ export function Options() {
       </Row>
 
       <div className="mt-6 flex items-center gap-3">
-        <button onClick={save} className="rounded bg-teal px-4 py-2 text-[15px] font-medium text-white hover:bg-teal-700">Save</button>
+        <button onClick={save} className="rounded bg-teal-700 px-4 py-2 text-[15px] font-medium text-white hover:bg-teal-700">Save</button>
         <button onClick={test} className="rounded border border-line px-3 py-2 text-[15px] text-muted hover:bg-cream/30">Send test notification</button>
-        {status && <span className="text-[15px] text-teal">{status}</span>}
+        {status && <span className="text-[15px] text-teal-700">{status}</span>}
       </div>
     </div>
   )

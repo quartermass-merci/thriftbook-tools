@@ -95,7 +95,7 @@ function FreshBadges({ st, cutoff }: { st?: ItemState; cutoff: number }) {
   return (
     <>
       {back && <span className="mr-1 inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">BACK IN STOCK</span>}
-      {isNew && <span className="mr-1 inline-block rounded bg-teal/10 px-1 py-0.5 text-[12px] font-semibold text-teal">NEW</span>}
+      {isNew && <span className="mr-1 inline-block rounded bg-teal/10 px-1 py-0.5 text-[12px] font-semibold text-teal-700">NEW</span>}
     </>
   )
 }
@@ -107,9 +107,9 @@ function FacetGroup({ label, options, excluded, onToggle, onAll, onNone }: { lab
       <div className="mb-1 flex items-center justify-between">
         <span className="text-[13px] font-semibold uppercase tracking-wide text-faint">{label}</span>
         <span className="text-[12px] text-faint">
-          <button onClick={onAll} className="hover:text-teal">All</button>
+          <button onClick={onAll} className="hover:text-teal-700">All</button>
           {' · '}
-          <button onClick={onNone} className="hover:text-teal">None</button>
+          <button onClick={onNone} className="hover:text-teal-700">None</button>
         </span>
       </div>
       <div className="max-h-44 space-y-0.5 overflow-y-auto">
@@ -154,7 +154,7 @@ function PriceTrend({ item, history }: { item: WishlistItem; history?: Array<[nu
   if (pts.length < 2) return <span className="text-faint" title="Builds as prices change over time">—</span>
   const min = Math.min(...pts), max = Math.max(...pts), cur = item.lowestPriceCents
   const pct = max > min ? (cur - min) / (max - min) : 0.5
-  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-teal' } : pct >= 0.75 ? { t: 'High', c: 'text-ink' } : { t: 'Typical', c: 'text-muted' }
+  const v = max === min ? null : pct <= 0.25 ? { t: 'Great', c: 'text-teal-700' } : pct >= 0.75 ? { t: 'High', c: 'text-ink' } : { t: 'Typical', c: 'text-muted' }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       <Sparkline points={pts} />
@@ -289,7 +289,7 @@ export function App() {
           <div className="flex gap-2">
             {i.coverImageUrl ? <img src={i.coverImageUrl} alt="" className="h-10 w-7 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-10 w-7 shrink-0 rounded bg-cream/50" />}
             <div className="min-w-0">
-              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-teal">{i.title}</a>
+              <a href={i.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-medium text-ink hover:text-teal-700">{i.title}</a>
               <div className="mt-0.5">
                 <FreshBadges st={states[i.id]} cutoff={freshCutoff} />
                 {isFreeBookEligible(i, ceiling) && <span className="inline-block rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">FREE-BOOK PICK</span>}
@@ -318,7 +318,7 @@ export function App() {
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
-          ? <span className="whitespace-nowrap text-teal">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
+          ? <span className="whitespace-nowrap text-teal-700">In stock{i.quantityAvailable ? ` (${i.quantityAvailable})` : ''}</span>
           : <span className="text-faint">Out of stock</span>,
       },
       { key: 'watching', label: 'Watching', align: 'center', title: 'Other users watching this item', sortVal: (i) => i.othersWatching ?? null, render: (i) => i.othersWatching ?? '—' },
@@ -486,11 +486,11 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col bg-canvas font-sans text-ink">
-      <header className="border-b-4 border-accent bg-teal px-6 py-4 text-canvas">
+      <header className="border-b-4 border-accent bg-teal-700 px-6 py-4 text-canvas">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">ThriftBooks Wishlist</h1>
-            <p className="mt-0.5 text-[15px] text-canvas/75">
+            <p className="mt-0.5 text-[15px] text-canvas">
               {snapshot ? (
                 <>
                   <span className="font-mono font-semibold text-canvas">{counts.shown}</span> of{' '}
@@ -501,7 +501,7 @@ export function App() {
               ) : (
                 'Not synced yet'
               )}
-              {status && <span className="ml-2 text-canvas/60">· {status}</span>}
+              {status && <span className="ml-2 text-canvas">· {status}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -517,7 +517,7 @@ export function App() {
             >
               {dedupeOpen ? '✕ Close' : `Dedupe${dupeGroups.length ? ` (${dupeGroups.length})` : ''}`}
             </button>
-            <div className="flex items-center gap-1 text-[15px] text-canvas/80">
+            <div className="flex items-center gap-1 text-[15px] text-canvas">
               <span>Sort</span>
               <select
                 value={sorts[0]?.key ?? 'wishlisted'}
@@ -535,8 +535,8 @@ export function App() {
               </button>
             </div>
             <div className="flex overflow-hidden rounded border border-white/25 text-[15px]">
-              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>List</button>
-              <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-teal' : 'text-canvas/80 hover:bg-white/10'}`}>Gallery</button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-canvas text-teal-700' : 'text-canvas hover:bg-white/10'}`}>List</button>
+              <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-teal-700' : 'text-canvas hover:bg-white/10'}`}>Gallery</button>
             </div>
             {viewMode === 'list' && <ColumnsMenu cols={cols} hidden={hiddenCols} onToggle={toggleCol} onShowAll={showAllCols} />}
             <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
@@ -548,16 +548,16 @@ export function App() {
         <aside className="w-60 shrink-0 overflow-y-auto border-r border-line p-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[15px] font-semibold">Filters</span>
-            {filtersActive && <button onClick={resetFilters} className="text-[13px] text-teal hover:underline">Reset</button>}
+            {filtersActive && <button onClick={resetFilters} className="text-[13px] text-teal-700 hover:underline">Reset</button>}
           </div>
           {snapshot && enrichedCount < items.length && (
             <div className="mb-3 rounded border border-line bg-cream/20 p-2 text-[13px]">
               <div className="flex items-center justify-between">
                 <span className="text-muted">Categorized <span className="font-mono">{enrichedCount}</span> / <span className="font-mono">{items.length}</span></span>
-                <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-teal hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
+                <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-teal-700 hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-line">
-                <div className="h-full rounded bg-teal transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
+                <div className="h-full rounded bg-teal-700 transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
               </div>
             </div>
           )}
@@ -609,7 +609,7 @@ export function App() {
               taste={taste}
             />
           ) : !snapshot ? (
-            <Empty title="No data yet">Open your <a className="text-teal underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
+            <Empty title="No data yet">Open your <a className="text-teal-700 underline" href="https://www.thriftbooks.com/list/" target="_blank" rel="noreferrer">ThriftBooks wishlist</a> with this extension installed — it syncs automatically.</Empty>
           ) : (
             <>
               {freeBookOnly && <ScanBar dim={scanDim} onPick={setScanDim} count={filtered.length} />}
@@ -640,7 +640,7 @@ export function App() {
                       return (
                         <th key={c.key} onClick={(e) => onSort(c.key, e.shiftKey)} title={c.title} className={`sticky top-0 z-10 bg-canvas cursor-pointer select-none py-2 pr-3 font-medium hover:text-ink ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${c.pending ? 'text-faint' : ''}`}>
                           {c.label}
-                          {si >= 0 && <span className="ml-0.5 text-teal">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
+                          {si >= 0 && <span className="ml-0.5 text-teal-700">{sorts[si].dir === 'asc' ? '▲' : '▼'}{sorts.length > 1 && <sub>{si + 1}</sub>}</span>}
                         </th>
                       )
                     })}
@@ -691,7 +691,7 @@ function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) =>
   return (
     <div className="mb-4 rounded-lg border border-teal/30 bg-teal/5 p-4">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-display text-lg font-semibold text-teal">Free-credit scan</span>
+        <span className="font-display text-lg font-semibold text-teal-700">Free-credit scan</span>
         <span className="text-[13px] text-muted">Rank your {count} eligible {count === 1 ? 'book' : 'books'} by what best fits your taste:</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -699,13 +699,13 @@ function ScanBar({ dim, onPick, count }: { dim: ScanDim; onPick: (d: ScanDim) =>
           <button
             key={d}
             onClick={() => onPick(dim === d ? 'off' : d)}
-            className={`rounded-full border px-3 py-1 text-[13px] ${dim === d ? 'border-teal bg-teal text-canvas' : 'border-line text-ink hover:bg-cream/40'}`}
+            className={`rounded-full border px-3 py-1 text-[13px] ${dim === d ? 'border-teal bg-teal-700 text-canvas' : 'border-line text-ink hover:bg-cream/40'}`}
           >
             {label}
           </button>
         ))}
         {dim !== 'off' && (
-          <button onClick={() => onPick('off')} className="rounded-full px-3 py-1 text-[13px] text-muted hover:text-teal">Clear</button>
+          <button onClick={() => onPick('off')} className="rounded-full px-3 py-1 text-[13px] text-muted hover:text-teal-700">Clear</button>
         )}
       </div>
     </div>
@@ -738,7 +738,7 @@ function ColumnsMenu({ cols, hidden, onToggle, onShowAll }: { cols: Col[]; hidde
       <div className="absolute right-0 z-30 mt-1 w-52 rounded border border-line bg-surface p-2 text-ink shadow-lg">
         <div className="mb-1 flex items-center justify-between px-1 text-[12px] uppercase tracking-wide text-faint">
           <span>Show columns</span>
-          <button onClick={onShowAll} className="hover:text-teal">All</button>
+          <button onClick={onShowAll} className="hover:text-teal-700">All</button>
         </div>
         <div className="max-h-80 space-y-0.5 overflow-y-auto">
           {cols.map((c) => (
@@ -780,7 +780,7 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
                   <span className="w-24 shrink-0 text-muted">{it.availability === 'in_stock' ? cap(it.offerCondition) : 'Out of stock'}</span>
                   <span className="w-16 shrink-0 font-mono tabular-nums text-ink">{it.availability === 'in_stock' ? formatCents(it.lowestPriceCents) : '—'}</span>
                   <span className="flex-1 truncate text-faint">{listsOf(it).join(', ')}</span>
-                  <a href={it.productUrl} target="_blank" rel="noreferrer" className="shrink-0 text-teal hover:underline">view ↗</a>
+                  <a href={it.productUrl} target="_blank" rel="noreferrer" className="shrink-0 text-teal-700 hover:underline">view ↗</a>
                   <button onClick={() => onDelete(it)} disabled={busy === it.id} title="Delete this copy from your wishlist" className="shrink-0 rounded p-1 text-faint hover:bg-cream hover:text-ink disabled:opacity-40">{busy === it.id ? '…' : '🗑'}</button>
                 </li>
               ))}
@@ -824,7 +824,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
           <select value={addList || lists[0]?.id || ''} onChange={(e) => setAddList(e.target.value)} className="rounded border border-line px-2 py-1 text-ink">
             {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
-          <button onClick={onRescan} disabled={discovering} className="rounded border border-line px-3 py-1.5 text-teal hover:bg-cream/40 disabled:opacity-50">{discovering ? 'Scanning…' : 'Rescan'}</button>
+          <button onClick={onRescan} disabled={discovering} className="rounded border border-line px-3 py-1.5 text-teal-700 hover:bg-cream/40 disabled:opacity-50">{discovering ? 'Scanning…' : 'Rescan'}</button>
         </div>
       </div>
       {discovering ? (
@@ -837,23 +837,23 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
             const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
             const aff = m.get(c.via ?? '') ?? 0
             const why = c.viaKind === 'publisher' ? 'from this press' : c.viaKind === 'category' ? 'in this category' : 'by this author'
-            const chipCls = c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal'
+            const chipCls = c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal-700'
             const added = addedIds.has(c.workId)
             return (
               <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
                 <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
                 {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />}
                 <div className="min-w-0 flex-1">
-                  <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal">{c.title}</a>
+                  <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{c.title}</a>
                   <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
                   <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>
                   {added ? (
-                    <span className="text-[13px] font-semibold text-teal">✓ Added</span>
+                    <span className="text-[13px] font-semibold text-teal-700">✓ Added</span>
                   ) : (
-                    <button onClick={() => onAdd(c)} disabled={addingId === c.workId} className="mt-0.5 rounded bg-teal px-2.5 py-1 text-[13px] font-medium text-white hover:bg-teal-700 disabled:opacity-50">{addingId === c.workId ? 'Adding…' : '+ Add'}</button>
+                    <button onClick={() => onAdd(c)} disabled={addingId === c.workId} className="mt-0.5 rounded bg-teal-700 px-2.5 py-1 text-[13px] font-medium text-white hover:bg-teal-700 disabled:opacity-50">{addingId === c.workId ? 'Adding…' : '+ Add'}</button>
                   )}
                 </div>
               </li>
@@ -877,9 +877,9 @@ function ScanResults({ items, dim, taste }: { items: WishlistItem[]; dim: ScanDi
             <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />
           )}
           <div className="min-w-0 flex-1">
-            <a href={it.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal">{it.title}</a>
+            <a href={it.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{it.title}</a>
             <div className="text-[13px] text-muted">{authorSortName(it.author) || '—'}</div>
-            <div className="mt-1 inline-flex rounded bg-teal/10 px-1.5 py-0.5 text-[12px] font-medium text-teal">{reasonFor(it, dim, taste)}</div>
+            <div className="mt-1 inline-flex rounded bg-teal/10 px-1.5 py-0.5 text-[12px] font-medium text-teal-700">{reasonFor(it, dim, taste)}</div>
           </div>
           <div className="shrink-0 text-right">
             <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(it.lowestPriceCents)}</div>

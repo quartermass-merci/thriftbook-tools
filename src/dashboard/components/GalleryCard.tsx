@@ -67,7 +67,7 @@ export function GalleryCard({
             href={it.productUrl}
             target="_blank"
             rel="noreferrer"
-            className="block font-display text-lg font-bold leading-tight text-ink hover:text-teal"
+            className="block font-display text-lg font-bold leading-tight text-ink hover:text-teal-700"
           >
             {it.title}
           </a>
@@ -86,7 +86,7 @@ export function GalleryCard({
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {back && <Badge cls="bg-accent text-ink">BACK IN STOCK</Badge>}
-            {isNew && <Badge cls="bg-teal/10 text-teal">NEW</Badge>}
+            {isNew && <Badge cls="bg-teal/10 text-teal-700">NEW</Badge>}
             {free && <Badge cls="bg-accent text-ink">FREE-BOOK PICK</Badge>}
           </div>
         </div>
