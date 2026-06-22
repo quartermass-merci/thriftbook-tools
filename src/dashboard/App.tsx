@@ -5,7 +5,7 @@ import { getSnapshot, getSettings, getItemStates, getPriceHistory, STORAGE_KEYS 
 import { onKvChange } from '@/shared/storage/kv'
 import { formatCents } from '@/shared/util/money'
 import { fmtDate, parseDate, authorSortName } from '@/shared/util/date'
-import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI, triggerDiscoverFromUI, addToWishlistViaUI } from '@/shared/sync-trigger'
+import { triggerSyncFromUI, deleteItemViaUI, triggerEnrichFromUI, triggerDiscoverFromUI } from '@/shared/sync-trigger'
 import { GalleryCard } from './components/GalleryCard'
 import { categorize, categoryRank } from '@/shared/taxonomy'
 import { normalizePublisher } from '@/shared/util/publisher'
@@ -195,8 +195,6 @@ export function App() {
   const [discovering, setDiscovering] = useState(false)
   const [candidates, setCandidates] = useState<SearchCandidate[]>([])
   const [discoverStatus, setDiscoverStatus] = useState('')
-  const [addList, setAddList] = useState('')
-  const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [includeCats, setIncludeCats] = useState(false)
   const [dealMode, setDealMode] = useState(false)
@@ -478,14 +476,9 @@ export function App() {
   }
   const onToggleCats = (v: boolean) => { setIncludeCats(v); void runDiscover(v, undefined) }
   const onToggleDeals = (v: boolean) => { setDealMode(v); void runDiscover(undefined, v) }
-  const onAdd = async (c: SearchCandidate) => {
-    const list = addList || snapshot?.subLists[0]?.id
-    if (!list) { setDiscoverStatus('No wishlist found to add to.'); return }
-    setAddingId(c.workId)
-    const ack = await addToWishlistViaUI(c.productUrl, list)
-    setAddingId(null)
-    if (ack.ok) { setAddedIds((p) => new Set(p).add(c.workId)); setDiscoverStatus(`Added “${c.title}”`) }
-    else setDiscoverStatus(ack.error ?? 'Add failed')
+  const onAdd = (c: SearchCandidate) => {
+    setAddedIds((p) => new Set(p).add(c.workId))
+    window.open(c.productUrl, '_blank', 'noopener,noreferrer')
   }
   const onDelete = async (it: WishlistItem) => {
     if (it.idListItem == null) { setStatus('Re-sync first — this item is missing its list-item id.'); return }
@@ -612,11 +605,7 @@ export function App() {
               discovering={discovering}
               status={discoverStatus}
               ceiling={ceiling}
-              lists={snapshot?.subLists ?? []}
-              addList={addList}
-              setAddList={setAddList}
               onAdd={onAdd}
-              addingId={addingId}
               addedIds={addedIds}
               onRescan={runDiscover}
               includeCats={includeCats}
@@ -809,16 +798,12 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, taste }: {
+function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
   ceiling: number
-  lists: { id: string; name: string }[]
-  addList: string
-  setAddList: (v: string) => void
   onAdd: (c: SearchCandidate) => void
-  addingId: string | null
   addedIds: Set<string>
   onRescan: () => void
   includeCats: boolean
@@ -843,10 +828,6 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
             <input type="checkbox" checked={dealMode} onChange={(e) => onToggleDeals(e.target.checked)} />
             Deals only
           </label>
-          <span className="text-muted">Add to</span>
-          <select value={addList || lists[0]?.id || ''} onChange={(e) => setAddList(e.target.value)} className="rounded border border-line px-2 py-1 text-ink">
-            {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
           <button onClick={onRescan} disabled={discovering} className="rounded border border-line px-3 py-1.5 text-teal-700 hover:bg-cream/40 disabled:opacity-50">{discovering ? 'Scanning…' : 'Rescan'}</button>
         </div>
       </div>
@@ -874,11 +855,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
                 <div className="shrink-0 text-right">
                   {c.isDeal && <div className="mb-0.5"><span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span></div>}
                   <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>
-                  {added ? (
-                    <span className="text-[13px] font-semibold text-teal-700">✓ Added</span>
-                  ) : (
-                    <button onClick={() => onAdd(c)} disabled={addingId === c.workId} className="mt-0.5 rounded bg-teal-700 px-2.5 py-1 text-[13px] font-medium text-white hover:bg-teal-700 disabled:opacity-50">{addingId === c.workId ? 'Adding…' : '+ Add'}</button>
-                  )}
+                  <button onClick={() => onAdd(c)} title="Open on ThriftBooks to add it to your wishlist" className="mt-0.5 rounded bg-teal-700 px-2.5 py-1 text-[13px] font-medium text-white hover:opacity-90">{added ? 'Opened ↗' : 'Open ↗'}</button>
                 </div>
               </li>
             )
