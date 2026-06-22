@@ -49,12 +49,21 @@ const RULES_RE: Array<[Category, RegExp]> = RULES.map(([c, kws]) => [
 
 /** Classify an item by its subjects. Returns null when no subject data exists yet
  *  (not enriched), so callers can distinguish "uncategorized" from "Reference/Other". */
+const catCache = new WeakMap<object, Category | null>()
 export function categorize(it: { genres?: string[]; genre?: string }): Category | null {
+  const hit = catCache.get(it)
+  if (hit !== undefined) return hit
   const subs = it.genres?.length ? it.genres : it.genre ? [it.genre] : []
-  if (!subs.length) return null
-  const text = subs.join(' · ')
-  for (const [cat, re] of RULES_RE) if (re.test(text)) return cat
-  return 'Reference/Other'
+  let result: Category | null = null
+  if (subs.length) {
+    const text = subs.join(' · ')
+    result = 'Reference/Other'
+    for (const [cat, re] of RULES_RE) {
+      if (re.test(text)) { result = cat; break }
+    }
+  }
+  catCache.set(it, result)
+  return result
 }
 
 /** Index of a category in the curated order (for sorting the facet). */

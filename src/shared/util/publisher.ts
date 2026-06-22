@@ -11,10 +11,12 @@ const SUFFIXES = new Set([
   'group', 'house', 'books', 'inc', 'llc', 'ltd', 'co',
 ])
 
+const cache = new Map<string, string | undefined>()
 export function normalizePublisher(raw?: string | null): string | undefined {
   if (!raw) return undefined
+  if (cache.has(raw)) return cache.get(raw)
   let s = raw.replace(/\s+/g, ' ').trim()
-  if (!s) return undefined
+  if (!s) { cache.set(raw, undefined); return undefined }
   const original = s
   let changed = true
   while (changed && s) {
@@ -29,5 +31,7 @@ export function normalizePublisher(raw?: string | null): string | undefined {
     }
   }
   s = s.replace(/[.,&\s]+$/, '').trim()
-  return s || original
+  const result = s || original
+  cache.set(raw, result)
+  return result
 }

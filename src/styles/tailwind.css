@@ -1,12 +1,19 @@
 @import "tailwindcss";
 /* Headers: Libre Franklin (Franklin Gothic). Body: EB Garamond. Numbers: DM Mono. */
-@import "@fontsource/libre-franklin/600.css";
-@import "@fontsource/libre-franklin/700.css";
-@import "@fontsource/eb-garamond/400.css";
-@import "@fontsource/eb-garamond/500.css";
-@import "@fontsource/eb-garamond/600.css";
-@import "@fontsource/dm-mono/400.css";
-@import "@fontsource/dm-mono/500.css";
+@import "@fontsource/libre-franklin/latin-600.css";
+@import "@fontsource/libre-franklin/latin-ext-600.css";
+@import "@fontsource/libre-franklin/latin-700.css";
+@import "@fontsource/libre-franklin/latin-ext-700.css";
+@import "@fontsource/eb-garamond/latin-400.css";
+@import "@fontsource/eb-garamond/latin-ext-400.css";
+@import "@fontsource/eb-garamond/latin-500.css";
+@import "@fontsource/eb-garamond/latin-ext-500.css";
+@import "@fontsource/eb-garamond/latin-600.css";
+@import "@fontsource/eb-garamond/latin-ext-600.css";
+@import "@fontsource/dm-mono/latin-400.css";
+@import "@fontsource/dm-mono/latin-ext-400.css";
+@import "@fontsource/dm-mono/latin-500.css";
+@import "@fontsource/dm-mono/latin-ext-500.css";
 
 /* "thriftbook tools" brand — ThriftBooks-aligned.
    teal = primary / links / structure, azure = ink, yellow = accent (bars, badges, stars). */
