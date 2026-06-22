@@ -1,55 +1,47 @@
-# ThriftBooks Wishlist Enhancer
+# Thriftbook Tools
 
-A local-only Chrome extension (Manifest V3) that augments the
-[ThriftBooks](https://www.thriftbooks.com/list/) wishlist with the things the
-native feature lacks:
+An **unofficial** Chrome extension (Manifest V3) that turns your
+[ThriftBooks](https://www.thriftbooks.com) wishlist into a real book-hunting
+dashboard — filters, price history, a free-book finder, a deals scanner, and
+dedupe. Everything runs locally in your browser; nothing leaves your device.
 
-1. Useful, visible **notifications** (best-effort, local).
-2. **New vs. old** detection — newly-available + recently-added badges.
-3. A unified **buyable** view across all sub-lists.
-4. **Recent additions** browsing.
-5. **Filter & sort** by genre / author / format (first-class, persistent).
-6. **Price history** — is this price low or high?
-7. **Free-Book Finder** — which wishlist books you can claim with your
-   ReadingRewards free-book credit (≤ ~$7, configurable).
+> ⚠️ **Unofficial.** Not affiliated with, endorsed by, or sponsored by
+> ThriftBooks. "ThriftBooks" is a trademark of its owner. Use at your own risk.
 
-## Stack
+## Features
+- **Dashboard** — every sub-list in one fast, sortable table or a cover gallery.
+- **Filters & sort** — author, curated category, publisher, format, condition,
+  language, availability, price; multi-key sort; per-column show/hide.
+- **Price history** — sparklines + a Great / Typical / High read on each in-stock book.
+- **Freshness** — "New" and "Back in stock" badges so you can pounce on rare titles.
+- **Free-book finder** — in-stock books within your ReadingRewards credit, ranked by value.
+- **Discover** — find books you don't own yet, by the authors, presses, and genres you collect.
+- **Deals scanner** — surface ThriftBooks Deal (volume-discount) titles that match your taste.
+- **Dedupe** — find and clean duplicate titles on your list.
+- **Notifications** — optional back-in-stock / price-drop alerts.
 
-React 19 · Vite 8 · TypeScript (strict) · Tailwind 4 · `@crxjs/vite-plugin`
-(MV3) · uPlot (charts) · IndexedDB via `idb` (price time-series).
+## Privacy
+All data is stored locally via `chrome.storage.local`. Nothing is ever sent to
+any server — no analytics, no tracking. It uses your existing ThriftBooks login
+and never sees your password. See **[PRIVACY.md](./PRIVACY.md)**.
+
+## Tech
+React 19 · Vite · TypeScript (strict) · Tailwind CSS 4 · `@crxjs/vite-plugin`.
+Type: Libre Franklin (display) + EB Garamond (body) + DM Mono (numbers).
 
 ## Develop
-
 ```bash
 npm install
-npm run icons      # generate placeholder icons into public/icons/
-npm run dev        # vite + crxjs (HMR)
-# then: chrome://extensions → Developer mode → Load unpacked → select dist/
+npm run dev      # live-reload dev build into dist/
+npm run build    # production build -> dist/
+npm test         # unit tests
+npm run icons    # regenerate toolbar icons from the logo
 ```
 
-## Build
+## Install from source
+1. `npm install && npm run build`
+2. Visit `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
+3. Open your ThriftBooks wishlist; the toolbar icon opens the dashboard.
 
-```bash
-npm run build      # tsc && vite build  ->  dist/ (load unpacked, or zip for Web Store)
-```
-
-## Architecture
-
-Three runtimes talk only through a typed message bus; a single `repo` is the
-read/write API over storage.
-
-- **Service worker** (`src/background/`) — owns `chrome.alarms` +
-  `chrome.notifications` + orchestration. No DOM, no authenticated fetches.
-- **Content script** (`src/content/`) — runs same-origin as the logged-in user;
-  the only component that reads wishlist data (via a `DataSource` adapter:
-  API-first, DOM fallback). Also mounts the in-page UI in a Shadow DOM.
-- **UI surfaces** (`src/dashboard/`, `src/popup/`, `src/options/`) — React apps
-  that read enriched data from the repo via the bus.
-
-See the implementation plan for full detail. Selectors/endpoints for the
-ThriftBooks site are centralized (and remotely overridable) so site changes are
-quick to patch.
-
-## Status
-
-Scaffold (M0). Data layer and features land in M1–M6.
+## License
+MIT
