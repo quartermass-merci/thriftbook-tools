@@ -11,11 +11,14 @@ import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationT
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
 import { fetchSearch, findEditionId } from './adapter/search'
+import { fetchWithTimeout } from './adapter/http'
+import { kvSet } from '@/shared/storage/kv'
 import { normalizePublisher } from '@/shared/util/publisher'
 import { formatCents } from '@/shared/util/money'
 import type { Msg, SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, NotifyItem } from '@/shared/messaging/protocol'
 
 const SYNC_THROTTLE_MS = 90_000
+const SCAN_PROGRESS_KEY = 'tbw:scan-progress'
 
 /** Any one of the user's list ids — used to enumerate the rest. */
 function seedListId(): number | string | null {
@@ -258,7 +261,10 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
     const seen = new Set<string>()
     const passthrough: SearchCandidate[] = [] // author + category (filtered dashboard-side)
     const pubByPress = new Map<string, SearchCandidate[]>()
-    for (const q of queries.slice(0, 20)) {
+    const qlist = queries.slice(0, 20)
+    for (let qi = 0; qi < qlist.length; qi++) {
+      const q = qlist[qi]
+      void kvSet(SCAN_PROGRESS_KEY, `Searching ${qi + 1}/${qlist.length} · ${q.label}`)
       let cands: SearchCandidate[] = []
       try { cands = await fetchSearch(q.term) } catch { cands = [] }
       for (const c of cands.slice(0, 25)) {
@@ -287,6 +293,7 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
     for (const c of order) {
       if (checks >= 30) break
       checks++
+      void kvSet(SCAN_PROGRESS_KEY, `${dealsOnly ? 'Checking deals' : 'Verifying presses'} ${checks}/${Math.min(30, order.length)}…`)
       try {
         const e = await fetchEnrichment(c.productUrl)
         if (dealsOnly) {
@@ -299,6 +306,7 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
       } catch { /* drop on fetch error */ }
       await new Promise((r) => setTimeout(r, 250))
     }
+    void kvSet(SCAN_PROGRESS_KEY, '')
     return { ok: true, candidates: dealsOnly ? verified : [...passthrough, ...verified] }
   } catch (e) {
     return { ok: false, error: String(e) }
@@ -308,7 +316,7 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
 /** Add a book to a wishlist: fetch its work page to resolve the edition id, then POST. */
 async function addToWishlist(productUrl: string, wishlistId: string): Promise<AddAck> {
   try {
-    const wres = await fetch(productUrl, { credentials: 'include' })
+    const wres = await fetchWithTimeout(productUrl, { credentials: 'include' }, 9000)
     if (!wres.ok) return { ok: false, error: `book page HTTP ${wres.status}` }
     const idEdition = findEditionId(await wres.text())
     if (!idEdition) return { ok: false, error: 'Could not find an edition id on that book page.' }

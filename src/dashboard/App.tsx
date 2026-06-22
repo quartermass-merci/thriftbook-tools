@@ -214,6 +214,8 @@ export function App() {
     })
   }, [])
 
+  useEffect(() => onKvChange<string>('tbw:scan-progress', (p) => { if (p) setDiscoverStatus(p) }), [])
+
   const ceiling = settings?.freeBookCeilingCents ?? 700
   const freshCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
   const items = useMemo(() => snapshot?.items ?? [], [snapshot])
@@ -848,7 +850,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
         </div>
       </div>
       {discovering ? (
-        <p className="mt-10 text-center text-[15px] text-muted">{dealMode ? 'Searching your authors, presses & categories for ThriftBooks Deals…' : `Searching ThriftBooks for ≤ ${formatCents(ceiling)} books by your authors…`}</p>
+        <p className="mt-10 text-center text-[15px] text-muted">{status || (dealMode ? 'Searching for ThriftBooks Deals…' : 'Searching ThriftBooks…')}</p>
       ) : candidates.length === 0 ? (
         <Empty title={dealMode ? 'No deals matched' : 'Nothing under the ceiling yet'}>{dealMode ? 'No ThriftBooks Deals from your authors/presses right now. Try “Categories too”, or rescan later — deals rotate.' : `No in-stock books ≤ ${formatCents(ceiling)} from your top authors right now. Hit Rescan later, or raise the free-book ceiling in Settings.`}</Empty>
       ) : (

@@ -3,6 +3,7 @@
 // tiles. Real result tiles carry `resultid=` in their link — that filters out
 // recommendation carousels. See the captured tile markup in DISCOVERY.md.
 import type { SearchCandidate } from '@/shared/types'
+import { fetchWithTimeout } from './http'
 
 const BASE = 'https://www.thriftbooks.com'
 
@@ -36,7 +37,7 @@ export function parseSearchResults(html: string): SearchCandidate[] {
 
 /** Fetch one browse/search page (logged-in, same-origin) and parse its results. */
 export async function fetchSearch(query: string): Promise<SearchCandidate[]> {
-  const res = await fetch(`${BASE}/browse/?b.search=${encodeURIComponent(query)}`, { credentials: 'include' })
+  const res = await fetchWithTimeout(`${BASE}/browse/?b.search=${encodeURIComponent(query)}`, { credentials: 'include' }, 9000)
   if (!res.ok) return []
   return parseSearchResults(await res.text())
 }

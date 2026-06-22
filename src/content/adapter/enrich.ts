@@ -1,6 +1,7 @@
 // Parses genre + publisher from a ThriftBooks product page. Runs in the content
 // script (same-origin), since neither field is in the list API. See DISCOVERY.md.
 import type { Enrichment } from '@/shared/types'
+import { fetchWithTimeout } from './http'
 
 function decodeEntities(s: string): string {
   return s
@@ -48,7 +49,7 @@ export function parseEnrichment(html: string): Enrichment {
 
 export async function fetchEnrichment(productUrl: string): Promise<Enrichment | null> {
   try {
-    const res = await fetch(productUrl, { credentials: 'include' })
+    const res = await fetchWithTimeout(productUrl, { credentials: 'include' }, 9000)
     if (!res.ok) return null
     return parseEnrichment(await res.text())
   } catch {
