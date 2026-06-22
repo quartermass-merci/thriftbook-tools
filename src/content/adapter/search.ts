@@ -44,5 +44,8 @@ export async function fetchSearch(query: string): Promise<SearchCandidate[]> {
 
 /** Pull the default edition id out of a work page's HTML — needed to add to a wishlist. */
 export function findEditionId(workHtml: string): string | undefined {
-  return workHtml.match(/["']?idEdition["']?\s*[:=]\s*["']?(\d+)/i)?.[1]
+  return (
+    workHtml.match(/["']?idEdition["']?\s*[:=]\s*["']?(\d+)/i)?.[1] ??
+    workHtml.match(/(?:id-?edition|edition-?id)\W{1,4}(\d{4,})/i)?.[1]
+  )
 }

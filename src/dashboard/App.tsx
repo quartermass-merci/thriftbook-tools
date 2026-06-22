@@ -394,7 +394,8 @@ export function App() {
     free: items.filter((i) => isFreeBookEligible(i, ceiling)).length,
   }), [items, filtered, ceiling])
 
-  const enrichedCount = useMemo(() => items.filter((i) => categorize(i) != null).length, [items])
+  const enrichedCount = useMemo(() => items.filter((i) => i.isDeal !== undefined || (i.genres?.length ?? 0) > 0 || !!i.publisher).length, [items])
+  const enrichableTotal = useMemo(() => items.filter((i) => i.productUrl).length, [items])
   const visibleCols = useMemo(() => cols.filter((c) => !hiddenCols.has(c.key)), [cols, hiddenCols])
   const dupeGroups = useMemo(() => {
     const norm = (s?: string) => (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -447,8 +448,8 @@ export function App() {
     const top = (m: Map<string, number>, n: number, min = 1) =>
       [...m.entries()].filter(([, c]) => c >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k)
     const queries: DiscoverQuery[] = [
-      ...top(taste.author, 10).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
-      ...top(taste.publisher, 6, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
+      ...top(taste.author, 14).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
+      ...top(taste.publisher, 8, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
       ...(cats ? top(taste.category, 4).map((c): DiscoverQuery => ({ kind: 'category', term: CATEGORY_QUERY[c] ?? c, label: c })) : []),
     ]
     if (!queries.length) { setDiscoverStatus('Sync your wishlist first.'); return }
@@ -564,14 +565,14 @@ export function App() {
             <span className="text-[15px] font-semibold">Filters</span>
             {filtersActive && <button onClick={resetFilters} className="text-[13px] text-teal-700 hover:underline">Reset</button>}
           </div>
-          {snapshot && enrichedCount < items.length && (
+          {snapshot && enrichedCount < enrichableTotal && (
             <div className="mb-3 rounded border border-line bg-cream/20 p-2 text-[13px]">
               <div className="flex items-center justify-between">
-                <span className="text-muted">Categorized <span className="font-mono">{enrichedCount}</span> / <span className="font-mono">{items.length}</span></span>
+                <span className="text-muted">Enriched <span className="font-mono">{enrichedCount}</span> / <span className="font-mono">{enrichableTotal}</span></span>
                 <button onClick={runEnrichAll} disabled={enriching} className="font-medium text-teal-700 hover:underline disabled:opacity-50">{enriching ? 'Enriching…' : 'Enrich all'}</button>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-line">
-                <div className="h-full rounded bg-teal-700 transition-all" style={{ width: `${items.length ? Math.round((enrichedCount / items.length) * 100) : 0}%` }} />
+                <div className="h-full rounded bg-teal-700 transition-all" style={{ width: `${enrichableTotal ? Math.round((enrichedCount / enrichableTotal) * 100) : 0}%` }} />
               </div>
             </div>
           )}

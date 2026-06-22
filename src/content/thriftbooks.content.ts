@@ -261,13 +261,13 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
     const seen = new Set<string>()
     const passthrough: SearchCandidate[] = [] // author + category (filtered dashboard-side)
     const pubByPress = new Map<string, SearchCandidate[]>()
-    const qlist = queries.slice(0, 20)
+    const qlist = queries.slice(0, 24)
     for (let qi = 0; qi < qlist.length; qi++) {
       const q = qlist[qi]
       void kvSet(SCAN_PROGRESS_KEY, `Searching ${qi + 1}/${qlist.length} · ${q.label}`)
       let cands: SearchCandidate[] = []
       try { cands = await fetchSearch(q.term) } catch { cands = [] }
-      for (const c of cands.slice(0, 25)) {
+      for (const c of cands.slice(0, 40)) {
         if (seen.has(c.workId)) continue
         seen.add(c.workId)
         const tagged: SearchCandidate = { ...c, via: q.label, viaKind: q.kind }
@@ -291,9 +291,9 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<Di
     const verified: SearchCandidate[] = []
     let checks = 0
     for (const c of order) {
-      if (checks >= 30) break
+      if (checks >= 45) break
       checks++
-      void kvSet(SCAN_PROGRESS_KEY, `${dealsOnly ? 'Checking deals' : 'Verifying presses'} ${checks}/${Math.min(30, order.length)}…`)
+      void kvSet(SCAN_PROGRESS_KEY, `${dealsOnly ? 'Checking deals' : 'Verifying presses'} ${checks}/${Math.min(45, order.length)}…`)
       try {
         const e = await fetchEnrichment(c.productUrl)
         if (dealsOnly) {
