@@ -12,10 +12,7 @@ async function registerAlarm(): Promise<void> {
   await chrome.alarms.create(SYNC_ALARM, { periodInMinutes: Math.max(1, s.alarmMinutes) })
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[TB-Wishlist] installed')
-  void registerAlarm()
-})
+chrome.runtime.onInstalled.addListener(() => void registerAlarm())
 chrome.runtime.onStartup.addListener(() => void registerAlarm())
 
 // On each alarm, kick a sync via an open ThriftBooks tab — its content script

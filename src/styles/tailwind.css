@@ -45,3 +45,26 @@ body {
   font-family: var(--font-sans);
   line-height: 1.5;
 }
+
+/* Ease interaction-state changes (color/background/border/shadow only — never
+   layout, so no jank). */
+button,
+a,
+summary,
+input,
+select,
+[role='button'] {
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

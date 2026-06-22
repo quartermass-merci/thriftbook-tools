@@ -547,7 +547,7 @@ export function App() {
               <button onClick={() => setViewMode('gallery')} className={`px-3 py-1.5 ${viewMode === 'gallery' ? 'bg-canvas text-teal-700' : 'text-canvas hover:bg-white/10'}`}>Gallery</button>
             </div>
             {viewMode === 'list' && <ColumnsMenu cols={cols} hidden={hiddenCols} onToggle={toggleCol} onShowAll={showAllCols} />}
-            <button onClick={sync} className="rounded border border-white/30 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
+            <button onClick={sync} className="rounded border border-white/25 px-3 py-1.5 text-[15px] hover:bg-white/10">↻ Sync</button>
           </div>
         </div>
       </header>
