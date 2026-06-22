@@ -8,8 +8,8 @@ import { normalizePublisher } from '@/shared/util/publisher'
 
 const cap = (s?: string) => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '—')
 
-function Badge({ cls, children }: { cls: string; children: ReactNode }) {
-  return <span className={`inline-block rounded px-1.5 py-0.5 text-[12px] font-semibold ${cls}`}>{children}</span>
+function Badge({ cls, title, children }: { cls: string; title?: string; children: ReactNode }) {
+  return <span title={title} className={`inline-block rounded px-1.5 py-0.5 text-[12px] font-semibold ${cls}`}>{children}</span>
 }
 function Row({ k, v, mono }: { k: string; v: ReactNode; mono?: boolean }) {
   return (
@@ -89,6 +89,7 @@ export function GalleryCard({
             {back && <Badge cls="bg-accent text-ink">BACK IN STOCK</Badge>}
             {isNew && <Badge cls="bg-teal/10 text-teal-700">NEW</Badge>}
             {free && <Badge cls="bg-accent text-ink">FREE-BOOK PICK</Badge>}
+            {it.isDeal && <Badge cls="bg-accent text-ink" title="ThriftBooks Deal · Buy 1 = 5% off · 2–4 = 10% · 5–7 = 15% · 8+ = 20%">DEAL</Badge>}
           </div>
         </div>
       </div>

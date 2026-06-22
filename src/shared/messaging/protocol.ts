@@ -17,7 +17,7 @@ export type Msg =
   | { type: 'NOTIFY'; items: NotifyItem[] }
   | { type: 'TEST_NOTIFY' }
   | { type: 'ENRICH_NOW' }
-  | { type: 'DISCOVER'; queries: DiscoverQuery[] }
+  | { type: 'DISCOVER'; queries: DiscoverQuery[]; dealsOnly?: boolean }
   | { type: 'ADD_TO_WISHLIST'; productUrl: string; wishlistId: string }
 
 export interface SyncAck {

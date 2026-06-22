@@ -43,6 +43,7 @@ export interface WishlistItem {
   format?: Format
   genres: string[]
   publisher?: string
+  isDeal?: boolean
   releaseDate?: string // ISO date when known
   coverImageUrl?: string
   productUrl?: string // /w/{title}/{id}/
@@ -86,6 +87,7 @@ export interface Enrichment {
   genre?: string
   genres?: string[]
   publisher?: string
+  isDeal?: boolean
   fetchedAt: number
 }
 
@@ -117,6 +119,7 @@ export interface SearchCandidate {
   /** The wishlist author/publisher/category this candidate was surfaced under. */
   via?: string
   viaKind?: DiscoverKind
+  isDeal?: boolean
 }
 
 export interface WishlistSnapshot {

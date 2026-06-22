@@ -85,12 +85,13 @@ function mergeEnrichment(items: WishlistItem[], map: Record<string, Enrichment>)
     if (e.genre) it.genre = e.genre
     if (e.genres) it.genres = e.genres
     if (e.publisher) it.publisher = e.publisher
+    if (e.isDeal != null) it.isDeal = e.isDeal
   }
 }
 
 /** Fetch + cache enrichment for a batch of not-yet-enriched items, then re-merge into the snapshot. */
 async function enrichBatch(items: WishlistItem[], map: Record<string, Enrichment>): Promise<void> {
-  const todo = items.filter((it) => it.productId && it.productUrl && !map[it.productId]).slice(0, ENRICH_BATCH)
+  const todo = items.filter((it) => it.productId && it.productUrl && (!map[it.productId] || map[it.productId].isDeal === undefined)).slice(0, ENRICH_BATCH)
   if (!todo.length) return
   let changed = false
   for (const it of todo) {
@@ -121,7 +122,7 @@ async function enrichAll(): Promise<EnrichAck> {
   enriching = true
   try {
     const map = await getEnrichmentMap()
-    const todo = snap0.items.filter((it) => it.productId && it.productUrl && !map[it.productId])
+    const todo = snap0.items.filter((it) => it.productId && it.productUrl && (!map[it.productId] || map[it.productId].isDeal === undefined))
     const flush = async () => {
       await setEnrichmentMap(map)
       const s = await getSnapshot()
@@ -219,7 +220,7 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
     return true
   }
   if (msg?.type === 'DISCOVER') {
-    void discover(msg.queries).then(sendResponse)
+    void discover(msg.queries, msg.dealsOnly).then(sendResponse)
     return true
   }
   if (msg?.type === 'ADD_TO_WISHLIST') {
@@ -252,7 +253,7 @@ async function deleteItem(idListItem: number, id: string): Promise<DeleteAck> {
 }
 
 /** Discover: fetch + parse browse results for a set of taste queries (authors), deduped. */
-async function discover(queries: DiscoverQuery[]): Promise<DiscoverAck> {
+async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<DiscoverAck> {
   try {
     const seen = new Set<string>()
     const passthrough: SearchCandidate[] = [] // author + category (filtered dashboard-side)
@@ -264,7 +265,7 @@ async function discover(queries: DiscoverQuery[]): Promise<DiscoverAck> {
         if (seen.has(c.workId)) continue
         seen.add(c.workId)
         const tagged: SearchCandidate = { ...c, via: q.label, viaKind: q.kind }
-        if (q.kind === 'publisher') {
+        if (dealsOnly || q.kind === 'publisher') {
           const arr = pubByPress.get(q.label) ?? []
           arr.push(tagged)
           pubByPress.set(q.label, arr)
@@ -286,14 +287,19 @@ async function discover(queries: DiscoverQuery[]): Promise<DiscoverAck> {
     for (const c of order) {
       if (checks >= 30) break
       checks++
-      setMarker(`Verifying presses… ${checks}`)
       try {
         const e = await fetchEnrichment(c.productUrl)
-        if (e?.publisher && normalizePublisher(e.publisher) === c.via) verified.push(c)
+        if (dealsOnly) {
+          setMarker(`Checking deals… ${checks}`)
+          if (e?.isDeal) verified.push({ ...c, isDeal: true })
+        } else {
+          setMarker(`Verifying presses… ${checks}`)
+          if (e?.publisher && normalizePublisher(e.publisher) === c.via) verified.push(c)
+        }
       } catch { /* drop on fetch error */ }
       await new Promise((r) => setTimeout(r, 250))
     }
-    return { ok: true, candidates: [...passthrough, ...verified] }
+    return { ok: true, candidates: dealsOnly ? verified : [...passthrough, ...verified] }
   } catch (e) {
     return { ok: false, error: String(e) }
   }

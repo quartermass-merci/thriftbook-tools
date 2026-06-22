@@ -69,6 +69,8 @@ const CATEGORY_QUERY: Record<string, string> = {
   'Kids/YA': 'young adult',
 }
 
+const DEAL_TIERS = 'ThriftBooks Deal · Buy 1 = 5% off · 2–4 = 10% · 5–7 = 15% · 8+ = 20% (applied at checkout)'
+
 type ScanDim = 'off' | 'overall' | 'category' | 'author' | 'publisher'
 type Taste = {
   author: Map<string, number>
@@ -197,6 +199,7 @@ export function App() {
   const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [includeCats, setIncludeCats] = useState(false)
+  const [dealMode, setDealMode] = useState(false)
   const [dedupeOpen, setDedupeOpen] = useState(false)
 
   useEffect(() => {
@@ -315,6 +318,7 @@ export function App() {
         ),
       },
       { key: 'price', label: 'Lowest', align: 'right', sortVal: (i) => (i.availability === 'in_stock' && i.lowestPriceCents != null ? i.lowestPriceCents : null), render: (i) => <span className="whitespace-nowrap text-base font-semibold text-ink">{i.availability === 'in_stock' ? formatCents(i.lowestPriceCents) : '—'}</span> },
+      { key: 'deal', label: 'Deal', align: 'center', sortVal: (i) => (i.isDeal ? 0 : 1), render: (i) => i.isDeal ? <span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span> : <span className="text-faint">—</span> },
       {
         key: 'status', label: 'Status', sortVal: (i) => (i.availability === 'in_stock' ? 0 : 1),
         render: (i) => i.availability === 'in_stock'
@@ -435,8 +439,9 @@ export function App() {
     setEnriching(false)
     setStatus(ack.ok ? `Enriched ${ack.enriched ?? 0} more books` : ack.error ?? 'Could not enrich')
   }
-  const runDiscover = async (catsOverride?: boolean) => {
+  const runDiscover = async (catsOverride?: boolean, dealsOverride?: boolean) => {
     const cats = catsOverride ?? includeCats
+    const deals = dealsOverride ?? dealMode
     const top = (m: Map<string, number>, n: number, min = 1) =>
       [...m.entries()].filter(([, c]) => c >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k)
     const queries: DiscoverQuery[] = [
@@ -446,8 +451,8 @@ export function App() {
     ]
     if (!queries.length) { setDiscoverStatus('Sync your wishlist first.'); return }
     setDiscovering(true)
-    setDiscoverStatus(`Scanning authors & verifying presses${cats ? ' + categories' : ''}… (a few seconds)`)
-    const ack = await triggerDiscoverFromUI(queries)
+    setDiscoverStatus(deals ? 'Scanning your taste for ThriftBooks Deals… (a few seconds)' : `Scanning authors & verifying presses${cats ? ' + categories' : ''}… (a few seconds)`)
+    const ack = await triggerDiscoverFromUI(queries, deals)
     setDiscovering(false)
     if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
     const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
@@ -457,13 +462,19 @@ export function App() {
       return m.get(c.via ?? '') ?? 0
     }
     const eligible = ack.candidates
-      .filter((c) => c.priceCents != null && c.priceCents <= ceiling && !onWishlist.has(c.workId))
+      .filter((c) => !onWishlist.has(c.workId))
+      .filter((c) => (deals ? c.isDeal : c.priceCents != null && c.priceCents <= ceiling))
       .filter((c) => c.viaKind !== 'author' || authorMatches(c.author, c.via ?? ''))
       .sort((a, b) => (KIND_ORDER[a.viaKind ?? 'author'] - KIND_ORDER[b.viaKind ?? 'author']) || affinity(b) - affinity(a) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
     setCandidates(eligible)
-    setDiscoverStatus(eligible.length ? `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list` : `No in-stock books ≤ ${formatCents(ceiling)} from your taste right now.`)
+    setDiscoverStatus(
+      eligible.length
+        ? deals ? `${eligible.length} ThriftBooks Deals matching your taste` : `${eligible.length} books ≤ ${formatCents(ceiling)}, not on your list`
+        : deals ? 'No deals matched your taste right now — try “Categories too”, or rescan later.' : `No in-stock books ≤ ${formatCents(ceiling)} from your taste right now.`,
+    )
   }
-  const onToggleCats = (v: boolean) => { setIncludeCats(v); void runDiscover(v) }
+  const onToggleCats = (v: boolean) => { setIncludeCats(v); void runDiscover(v, undefined) }
+  const onToggleDeals = (v: boolean) => { setDealMode(v); void runDiscover(undefined, v) }
   const onAdd = async (c: SearchCandidate) => {
     const list = addList || snapshot?.subLists[0]?.id
     if (!list) { setDiscoverStatus('No wishlist found to add to.'); return }
@@ -607,6 +618,8 @@ export function App() {
               onRescan={runDiscover}
               includeCats={includeCats}
               onToggleCats={onToggleCats}
+              dealMode={dealMode}
+              onToggleDeals={onToggleDeals}
               taste={taste}
             />
           ) : !snapshot ? (
@@ -793,7 +806,7 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, includeCats, onToggleCats, taste }: {
+function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addList, setAddList, onAdd, addingId, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
@@ -807,19 +820,25 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
   onRescan: () => void
   includeCats: boolean
   onToggleCats: (v: boolean) => void
+  dealMode: boolean
+  onToggleDeals: (v: boolean) => void
   taste: Taste
 }) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-4 border-accent pb-3">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink">Discover ≤ {formatCents(ceiling)}</h2>
-          <p className="text-[13px] text-muted">{status || 'Books by the authors & presses you collect, not yet on your list.'}</p>
+          <h2 className="font-display text-xl font-bold text-ink">{dealMode ? 'Deal picks' : `Discover ≤ ${formatCents(ceiling)}`}</h2>
+          <p className="text-[13px] text-muted">{status || (dealMode ? 'Books on a ThriftBooks Deal, by your taste — stack them: 8+ books = 20% off at checkout.' : 'Books by the authors & presses you collect, not yet on your list.')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <label className="flex cursor-pointer items-center gap-1 text-muted" title="Also scan your top genres (broader)">
             <input type="checkbox" checked={includeCats} onChange={(e) => onToggleCats(e.target.checked)} />
             Categories too
+          </label>
+          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Only books on a ThriftBooks Deal (ignores the $7 ceiling)">
+            <input type="checkbox" checked={dealMode} onChange={(e) => onToggleDeals(e.target.checked)} />
+            Deals only
           </label>
           <span className="text-muted">Add to</span>
           <select value={addList || lists[0]?.id || ''} onChange={(e) => setAddList(e.target.value)} className="rounded border border-line px-2 py-1 text-ink">
@@ -829,9 +848,9 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
         </div>
       </div>
       {discovering ? (
-        <p className="mt-10 text-center text-[15px] text-muted">Searching ThriftBooks for ≤ {formatCents(ceiling)} books by your authors…</p>
+        <p className="mt-10 text-center text-[15px] text-muted">{dealMode ? 'Searching your authors, presses & categories for ThriftBooks Deals…' : `Searching ThriftBooks for ≤ ${formatCents(ceiling)} books by your authors…`}</p>
       ) : candidates.length === 0 ? (
-        <Empty title="Nothing under the ceiling yet">No in-stock books ≤ {formatCents(ceiling)} from your top authors right now. Hit Rescan later, or raise the free-book ceiling in Settings.</Empty>
+        <Empty title={dealMode ? 'No deals matched' : 'Nothing under the ceiling yet'}>{dealMode ? 'No ThriftBooks Deals from your authors/presses right now. Try “Categories too”, or rescan later — deals rotate.' : `No in-stock books ≤ ${formatCents(ceiling)} from your top authors right now. Hit Rescan later, or raise the free-book ceiling in Settings.`}</Empty>
       ) : (
         <ol className="space-y-2">
           {candidates.map((c, i) => {
@@ -850,6 +869,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, lists, addLis
                   <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>
                 </div>
                 <div className="shrink-0 text-right">
+                  {c.isDeal && <div className="mb-0.5"><span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span></div>}
                   <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>
                   {added ? (
                     <span className="text-[13px] font-semibold text-teal-700">✓ Added</span>

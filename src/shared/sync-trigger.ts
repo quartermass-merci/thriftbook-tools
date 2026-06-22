@@ -87,7 +87,7 @@ export async function triggerEnrichFromUI(): Promise<EnrichAck> {
 }
 
 /** Run a Discover catalog scan (search those queries) via a list tab's content script. */
-export async function triggerDiscoverFromUI(queries: DiscoverQuery[]): Promise<DiscoverAck> {
+export async function triggerDiscoverFromUI(queries: DiscoverQuery[], dealsOnly = false): Promise<DiscoverAck> {
   let tabs: chrome.tabs.Tab[] = []
   try {
     tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
@@ -97,7 +97,7 @@ export async function triggerDiscoverFromUI(queries: DiscoverQuery[]): Promise<D
   for (const t of tabs) {
     if (t.id == null) continue
     try {
-      const ack = await sendWithTimeout<DiscoverAck>(t.id, { type: 'DISCOVER', queries }, 180_000)
+      const ack = await sendWithTimeout<DiscoverAck>(t.id, { type: 'DISCOVER', queries, dealsOnly }, 180_000)
       if (ack) return ack
     } catch {
       /* no content script here — try the next */

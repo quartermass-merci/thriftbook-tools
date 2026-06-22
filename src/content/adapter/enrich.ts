@@ -40,6 +40,9 @@ export function parseEnrichment(html: string): Enrichment {
     }
   }
 
+  // ThriftBooks Deal ("red tag") — a rendered <svg icon="deal-tag" aria-label="Thrift Deal">.
+  e.isDeal = /icon=["']deal-tag["']|aria-label=["']Thrift Deal["']/i.test(html)
+
   return e
 }
 
