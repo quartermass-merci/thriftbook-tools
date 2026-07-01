@@ -97,7 +97,7 @@ export interface SubList {
   itemCount: number
 }
 
-export type DiscoverKind = 'author' | 'publisher' | 'category'
+export type DiscoverKind = 'author' | 'publisher' | 'category' | 'manual'
 
 /** One thing to search for in Discover: what to search (term) + how to label/credit it. */
 export interface DiscoverQuery {

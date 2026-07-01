@@ -198,6 +198,7 @@ export function App() {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [includeCats, setIncludeCats] = useState(false)
   const [dealMode, setDealMode] = useState(false)
+  const [customTerms, setCustomTerms] = useState(() => { try { return localStorage.getItem('tbw-custom-terms') || '' } catch { return '' } })
   const [dedupeOpen, setDedupeOpen] = useState(false)
 
   useEffect(() => {
@@ -213,6 +214,7 @@ export function App() {
   }, [])
 
   useEffect(() => onKvChange<string>('tbw:scan-progress', (p) => { if (p) setDiscoverStatus(p) }), [])
+  useEffect(() => { try { localStorage.setItem('tbw-custom-terms', customTerms) } catch { /* ignore */ } }, [customTerms])
 
   const ceiling = settings?.freeBookCeilingCents ?? 700
   const freshCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -445,7 +447,9 @@ export function App() {
     const deals = dealsOverride ?? dealMode
     const top = (m: Map<string, number>, n: number, min = 1) =>
       [...m.entries()].filter(([, c]) => c >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k)
+    const manual: DiscoverQuery[] = customTerms.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 8).map((t): DiscoverQuery => ({ kind: 'manual', term: t, label: t }))
     const queries: DiscoverQuery[] = [
+      ...manual,
       ...top(taste.author, 14).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
       ...top(taste.publisher, 8, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
       ...(cats ? top(taste.category, 4).map((c): DiscoverQuery => ({ kind: 'category', term: CATEGORY_QUERY[c] ?? c, label: c })) : []),
@@ -457,14 +461,15 @@ export function App() {
     setDiscovering(false)
     if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not run Discover'); return }
     const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
-    const KIND_ORDER: Record<string, number> = { author: 0, publisher: 1, category: 2 }
+    const KIND_ORDER: Record<string, number> = { manual: -1, author: 0, publisher: 1, category: 2 }
     const affinity = (c: SearchCandidate) => {
+      if (c.viaKind === 'manual') return 0
       const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
       return m.get(c.via ?? '') ?? 0
     }
     const eligible = ack.candidates
       .filter((c) => !onWishlist.has(c.workId))
-      .filter((c) => (deals ? c.isDeal : c.priceCents != null && c.priceCents <= ceiling))
+      .filter((c) => c.viaKind === 'manual' || (deals ? c.isDeal : c.priceCents != null && c.priceCents <= ceiling))
       .filter((c) => c.viaKind !== 'author' || authorMatches(c.author, c.via ?? ''))
       .sort((a, b) => (KIND_ORDER[a.viaKind ?? 'author'] - KIND_ORDER[b.viaKind ?? 'author']) || affinity(b) - affinity(a) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
     setCandidates(eligible)
@@ -612,6 +617,8 @@ export function App() {
               onToggleCats={onToggleCats}
               dealMode={dealMode}
               onToggleDeals={onToggleDeals}
+              customTerms={customTerms}
+              setCustomTerms={setCustomTerms}
               taste={taste}
             />
           ) : !snapshot ? (
@@ -798,7 +805,7 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, taste }: {
+function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, customTerms, setCustomTerms, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
@@ -810,6 +817,8 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedI
   onToggleCats: (v: boolean) => void
   dealMode: boolean
   onToggleDeals: (v: boolean) => void
+  customTerms: string
+  setCustomTerms: (v: string) => void
   taste: Taste
 }) {
   return (
@@ -820,6 +829,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedI
           <p className="text-[13px] text-muted">{status || (dealMode ? 'Books on a ThriftBooks Deal, by your taste — stack them: 8+ books = 20% off at checkout.' : 'Books by the authors & presses you collect, not yet on your list.')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <input value={customTerms} onChange={(e) => setCustomTerms(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onRescan() }} placeholder="Also search: Badiou, Jack Ketchum…" aria-label="Also search these authors, presses, or titles" className="w-52 rounded border border-line px-2 py-1 text-ink" />
           <label className="flex cursor-pointer items-center gap-1 text-muted" title="Also scan your top genres (broader)">
             <input type="checkbox" checked={includeCats} onChange={(e) => onToggleCats(e.target.checked)} />
             Categories too
@@ -838,10 +848,11 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedI
       ) : (
         <ol className="space-y-2">
           {candidates.map((c, i) => {
+            const isManual = c.viaKind === 'manual'
             const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
-            const aff = m.get(c.via ?? '') ?? 0
+            const aff = isManual ? 0 : m.get(c.via ?? '') ?? 0
             const why = c.viaKind === 'publisher' ? 'from this press' : c.viaKind === 'category' ? 'in this category' : 'by this author'
-            const chipCls = c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal-700'
+            const chipCls = isManual ? 'bg-teal-700 text-white' : c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal-700'
             const added = addedIds.has(c.workId)
             return (
               <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
@@ -850,7 +861,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedI
                 <div className="min-w-0 flex-1">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{c.title}</a>
                   <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
-                  <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>
+                  <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{isManual ? ' · your search' : aff ? ` · ${aff} ${why} on your list` : ''}</div>
                 </div>
                 <div className="shrink-0 text-right">
                   {c.isDeal && <div className="mb-0.5"><span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span></div>}
