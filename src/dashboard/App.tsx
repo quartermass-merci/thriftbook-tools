@@ -53,6 +53,17 @@ function authorMatches(resultAuthor: string | undefined, query: string): boolean
 }
 
 // Curated category bucket -> a ThriftBooks search keyword (broader than author/press).
+// Discover query-builder format options: label for the <select> + a matcher run
+// against each result tile's format string. `any` has no matcher (no filtering).
+const FORMAT_OPTIONS: { value: string; label: string; match?: (f: string) => boolean }[] = [
+  { value: 'any', label: 'Any format' },
+  { value: 'hardcover', label: 'Hardcover', match: (f) => /hardcover|hardback/i.test(f) },
+  { value: 'paperback', label: 'Paperback', match: (f) => /paperback/i.test(f) && !/mass market/i.test(f) },
+  { value: 'mass', label: 'Mass market', match: (f) => /mass market/i.test(f) },
+  { value: 'library', label: 'Library binding', match: (f) => /library/i.test(f) },
+]
+const formatMatcher = (v: string) => FORMAT_OPTIONS.find((o) => o.value === v)?.match
+
 const CATEGORY_QUERY: Record<string, string> = {
   'Literary Fiction': 'literary fiction',
   'Sci-Fi': 'science fiction',
@@ -198,7 +209,9 @@ export function App() {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [includeCats, setIncludeCats] = useState(false)
   const [dealMode, setDealMode] = useState(false)
-  const [customTerms, setCustomTerms] = useState(() => { try { return localStorage.getItem('tbw-custom-terms') || '' } catch { return '' } })
+  const [qTerm, setQTerm] = useState(() => { try { return localStorage.getItem('tbw-q-term') || '' } catch { return '' } })
+  const [qFormat, setQFormat] = useState(() => { try { return localStorage.getItem('tbw-q-format') || 'any' } catch { return 'any' } })
+  const [qMax, setQMax] = useState(() => { try { return localStorage.getItem('tbw-q-max') || '' } catch { return '' } })
   const [dedupeOpen, setDedupeOpen] = useState(false)
 
   useEffect(() => {
@@ -214,7 +227,7 @@ export function App() {
   }, [])
 
   useEffect(() => onKvChange<string>('tbw:scan-progress', (p) => { if (p) setDiscoverStatus(p) }), [])
-  useEffect(() => { try { localStorage.setItem('tbw-custom-terms', customTerms) } catch { /* ignore */ } }, [customTerms])
+  useEffect(() => { try { localStorage.setItem('tbw-q-term', qTerm); localStorage.setItem('tbw-q-format', qFormat); localStorage.setItem('tbw-q-max', qMax) } catch { /* ignore */ } }, [qTerm, qFormat, qMax])
 
   const ceiling = settings?.freeBookCeilingCents ?? 700
   const freshCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -447,12 +460,10 @@ export function App() {
     const deals = dealsOverride ?? dealMode
     const top = (m: Map<string, number>, n: number, min = 1) =>
       [...m.entries()].filter(([, c]) => c >= min).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k)
-    const manual: DiscoverQuery[] = customTerms.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 8).map((t): DiscoverQuery => ({ kind: 'manual', term: t, label: t }))
     const queries: DiscoverQuery[] = [
-      ...manual,
-      ...top(taste.author, 14).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
-      ...top(taste.publisher, 8, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
-      ...(cats ? top(taste.category, 4).map((c): DiscoverQuery => ({ kind: 'category', term: CATEGORY_QUERY[c] ?? c, label: c })) : []),
+      ...top(taste.author, 20).map((a): DiscoverQuery => ({ kind: 'author', term: a, label: a })),
+      ...top(taste.publisher, 12, 2).map((p): DiscoverQuery => ({ kind: 'publisher', term: p, label: p })),
+      ...(cats ? top(taste.category, 6).map((c): DiscoverQuery => ({ kind: 'category', term: CATEGORY_QUERY[c] ?? c, label: c })) : []),
     ]
     if (!queries.length) { setDiscoverStatus('Sync your wishlist first.'); return }
     setDiscovering(true)
@@ -469,7 +480,7 @@ export function App() {
     }
     const eligible = ack.candidates
       .filter((c) => !onWishlist.has(c.workId))
-      .filter((c) => c.viaKind === 'manual' || (deals ? c.isDeal : c.priceCents != null && c.priceCents <= ceiling))
+      .filter((c) => (deals ? c.isDeal : c.priceCents != null && c.priceCents <= ceiling))
       .filter((c) => c.viaKind !== 'author' || authorMatches(c.author, c.via ?? ''))
       .sort((a, b) => (KIND_ORDER[a.viaKind ?? 'author'] - KIND_ORDER[b.viaKind ?? 'author']) || affinity(b) - affinity(a) || (a.priceCents ?? 0) - (b.priceCents ?? 0))
     setCandidates(eligible)
@@ -479,8 +490,31 @@ export function App() {
         : deals ? 'No deals matched your taste right now — try “Categories too”, or rescan later.' : `No in-stock books ≤ ${formatCents(ceiling)} from your taste right now.`,
     )
   }
-  const onToggleCats = (v: boolean) => { setIncludeCats(v); void runDiscover(v, undefined) }
-  const onToggleDeals = (v: boolean) => { setDealMode(v); void runDiscover(undefined, v) }
+  // Manual query-builder search: one targeted term, fetched a few pages deep, then
+  // filtered by format + max price + deals right here (all present on the result tiles).
+  const runSearch = async () => {
+    const term = qTerm.trim()
+    if (!term) { setCandidates([]); setDiscoverStatus('Type a press, author, title, or keyword to search.'); return }
+    const maxCents = qMax.trim() ? Math.round(parseFloat(qMax) * 100) : null
+    const match = formatMatcher(qFormat)
+    const fmtLabel = qFormat !== 'any' ? FORMAT_OPTIONS.find((o) => o.value === qFormat)?.label : null
+    const bits = [fmtLabel, maxCents != null ? `≤ ${formatCents(maxCents)}` : null, dealMode ? 'deals' : null].filter(Boolean).join(' · ')
+    const tail = bits ? ` · ${bits}` : ''
+    setDiscovering(true); setCandidates([])
+    setDiscoverStatus(`Searching ThriftBooks for “${term}”${tail}…`)
+    const ack = await triggerDiscoverFromUI([{ kind: 'manual', term, label: term }], dealMode, 3)
+    setDiscovering(false)
+    if (!ack.ok || !ack.candidates) { setCandidates([]); setDiscoverStatus(ack.error ?? 'Could not search — open your ThriftBooks wishlist in a tab and try again.'); return }
+    const onWishlist = new Set(items.map((i) => i.productId).filter(Boolean) as string[])
+    const results = ack.candidates
+      .filter((c) => !onWishlist.has(c.workId))
+      .filter((c) => (dealMode ? c.isDeal : true))
+      .filter((c) => maxCents == null || (c.priceCents != null && c.priceCents <= maxCents))
+      .filter((c) => !match || (c.format ? match(c.format) : false))
+      .sort((a, b) => (a.priceCents ?? Number.MAX_SAFE_INTEGER) - (b.priceCents ?? Number.MAX_SAFE_INTEGER))
+    setCandidates(results)
+    setDiscoverStatus(results.length ? `${results.length} result${results.length === 1 ? '' : 's'} for “${term}”${tail}` : `No matches for “${term}”${tail}. Loosen the format or raise the price.`)
+  }
   const onAdd = (c: SearchCandidate) => {
     setAddedIds((p) => new Set(p).add(c.workId))
     window.open(c.productUrl, '_blank', 'noopener,noreferrer')
@@ -518,7 +552,7 @@ export function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open) { setDedupeOpen(false); if (!candidates.length && !discovering) void runDiscover() } }}
+              onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open) setDedupeOpen(false) }}
               className="rounded bg-accent px-3 py-1.5 text-[15px] font-semibold text-ink hover:brightness-95"
             >
               {discoverOpen ? '✕ Close' : '✨ Discover ≤$7'}
@@ -609,16 +643,20 @@ export function App() {
               candidates={candidates}
               discovering={discovering}
               status={discoverStatus}
-              ceiling={ceiling}
               onAdd={onAdd}
               addedIds={addedIds}
-              onRescan={runDiscover}
+              onSearch={runSearch}
+              onSuggest={() => runDiscover()}
+              qTerm={qTerm}
+              setQTerm={setQTerm}
+              qFormat={qFormat}
+              setQFormat={setQFormat}
+              qMax={qMax}
+              setQMax={setQMax}
               includeCats={includeCats}
-              onToggleCats={onToggleCats}
+              setIncludeCats={setIncludeCats}
               dealMode={dealMode}
-              onToggleDeals={onToggleDeals}
-              customTerms={customTerms}
-              setCustomTerms={setCustomTerms}
+              setDealMode={setDealMode}
               taste={taste}
             />
           ) : !snapshot ? (
@@ -805,46 +843,50 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedIds, onRescan, includeCats, onToggleCats, dealMode, onToggleDeals, customTerms, setCustomTerms, taste }: {
+function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSearch, onSuggest, qTerm, setQTerm, qFormat, setQFormat, qMax, setQMax, includeCats, setIncludeCats, dealMode, setDealMode, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
-  ceiling: number
   onAdd: (c: SearchCandidate) => void
   addedIds: Set<string>
-  onRescan: () => void
+  onSearch: () => void
+  onSuggest: () => void
+  qTerm: string
+  setQTerm: (v: string) => void
+  qFormat: string
+  setQFormat: (v: string) => void
+  qMax: string
+  setQMax: (v: string) => void
   includeCats: boolean
-  onToggleCats: (v: boolean) => void
+  setIncludeCats: (v: boolean) => void
   dealMode: boolean
-  onToggleDeals: (v: boolean) => void
-  customTerms: string
-  setCustomTerms: (v: string) => void
+  setDealMode: (v: boolean) => void
   taste: Taste
 }) {
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b-4 border-accent pb-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink">{dealMode ? 'Deal picks' : `Discover ≤ ${formatCents(ceiling)}`}</h2>
-          <p className="text-[13px] text-muted">{status || (dealMode ? 'Books on a ThriftBooks Deal, by your taste — stack them: 8+ books = 20% off at checkout.' : 'Books by the authors & presses you collect, not yet on your list.')}</p>
+      <div className="mb-4 border-b-4 border-accent pb-3">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="font-display text-xl font-bold text-ink">Search ThriftBooks</h2>
+          <span className="text-[13px] text-muted">{status || 'Books not on your list — search by press, author, title, or keyword.'}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[13px]">
-          <input value={customTerms} onChange={(e) => setCustomTerms(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onRescan() }} placeholder="Also search: Badiou, Jack Ketchum…" aria-label="Also search these authors, presses, or titles" className="w-52 rounded border border-line px-2 py-1 text-ink" />
-          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Also scan your top genres (broader)">
-            <input type="checkbox" checked={includeCats} onChange={(e) => onToggleCats(e.target.checked)} />
-            Categories too
-          </label>
-          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Only books on a ThriftBooks Deal (ignores the $7 ceiling)">
-            <input type="checkbox" checked={dealMode} onChange={(e) => onToggleDeals(e.target.checked)} />
-            Deals only
-          </label>
-          <button onClick={onRescan} disabled={discovering} className="rounded border border-line px-3 py-1.5 text-teal-700 hover:bg-cream/40 disabled:opacity-50">{discovering ? 'Scanning…' : 'Rescan'}</button>
+          <input value={qTerm} onChange={(e) => setQTerm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onSearch() }} placeholder="e.g. Verso, Badiou, Jack Ketchum, horror…" aria-label="Search ThriftBooks by press, author, title, or keyword" className="min-w-[15rem] flex-1 rounded border border-line px-2.5 py-1.5 text-ink" />
+          <select value={qFormat} onChange={(e) => setQFormat(e.target.value)} aria-label="Format" className="rounded border border-line px-2 py-1.5 text-ink">
+            {FORMAT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <label className="flex items-center gap-1 text-muted">Max&nbsp;$<input value={qMax} onChange={(e) => setQMax(e.target.value.replace(/[^\d.]/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') onSearch() }} inputMode="decimal" placeholder="10" aria-label="Maximum price in dollars" className="w-14 rounded border border-line px-2 py-1.5 text-ink tabular-nums" /></label>
+          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Only books currently on a ThriftBooks Deal (volume discount)"><input type="checkbox" checked={dealMode} onChange={(e) => setDealMode(e.target.checked)} />Deals only</label>
+          <button onClick={onSearch} disabled={discovering} className="rounded bg-teal-700 px-3.5 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50">{discovering ? 'Searching…' : 'Search'}</button>
+          <span className="mx-0.5 select-none text-line">|</span>
+          <button onClick={onSuggest} disabled={discovering} title="Suggest books from the authors, presses & genres you already collect (≤ your free-book ceiling)" className="rounded border border-line px-3 py-1.5 text-teal-700 hover:bg-cream/40 disabled:opacity-50">Suggest from my list ▸</button>
+          <label className="flex cursor-pointer items-center gap-1 text-muted" title="Include your top genres when suggesting (broader)"><input type="checkbox" checked={includeCats} onChange={(e) => setIncludeCats(e.target.checked)} />+ genres</label>
         </div>
       </div>
       {discovering ? (
-        <p className="mt-10 text-center text-[15px] text-muted">{status || (dealMode ? 'Searching for ThriftBooks Deals…' : 'Searching ThriftBooks…')}</p>
+        <p className="mt-10 text-center text-[15px] text-muted">{status || 'Searching ThriftBooks…'}</p>
       ) : candidates.length === 0 ? (
-        <Empty title={dealMode ? 'No deals matched' : 'Nothing under the ceiling yet'}>{dealMode ? 'No ThriftBooks Deals from your authors/presses right now. Try “Categories too”, or rescan later — deals rotate.' : `No in-stock books ≤ ${formatCents(ceiling)} from your top authors right now. Hit Rescan later, or raise the free-book ceiling in Settings.`}</Empty>
+        <Empty title="Nothing to show yet">Search above — try a press like <b className="text-ink">Verso</b> with <b className="text-ink">Hardcover</b> and <b className="text-ink">Max&nbsp;$10</b>. Or hit <b className="text-ink">Suggest from my list</b> for picks from your taste.</Empty>
       ) : (
         <ol className="space-y-2">
           {candidates.map((c, i) => {
@@ -861,7 +903,7 @@ function DiscoverPanel({ candidates, discovering, status, ceiling, onAdd, addedI
                 <div className="min-w-0 flex-1">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{c.title}</a>
                   <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
-                  <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{isManual ? ' · your search' : aff ? ` · ${aff} ${why} on your list` : ''}</div>
+                  {!isManual && <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>}
                 </div>
                 <div className="shrink-0 text-right">
                   {c.isDeal && <div className="mb-0.5"><span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span></div>}

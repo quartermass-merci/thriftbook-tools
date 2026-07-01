@@ -35,11 +35,30 @@ export function parseSearchResults(html: string): SearchCandidate[] {
   return out
 }
 
-/** Fetch one browse/search page (logged-in, same-origin) and parse its results. */
-export async function fetchSearch(query: string): Promise<SearchCandidate[]> {
-  const res = await fetchWithTimeout(`${BASE}/browse/?b.search=${encodeURIComponent(query)}`, { credentials: 'include' }, 9000)
-  if (!res.ok) return []
-  return parseSearchResults(await res.text())
+/** Fetch browse/search results (logged-in, same-origin), optionally several pages deep.
+ *  Pagination is best-effort: we dedupe by workId and stop the instant a page adds
+ *  nothing new — so if `b.p` is ignored (page 2 === page 1) we harmlessly fall back to
+ *  a single page rather than looping. */
+export async function fetchSearch(query: string, pages = 1): Promise<SearchCandidate[]> {
+  const out: SearchCandidate[] = []
+  const seen = new Set<string>()
+  const q = encodeURIComponent(query)
+  for (let p = 1; p <= Math.max(1, pages); p++) {
+    const url = p === 1 ? `${BASE}/browse/?b.search=${q}` : `${BASE}/browse/?b.search=${q}&b.p=${p}`
+    let res: Response
+    try { res = await fetchWithTimeout(url, { credentials: 'include' }, 9000) } catch { break }
+    if (!res.ok) break
+    let added = 0
+    for (const c of parseSearchResults(await res.text())) {
+      if (seen.has(c.workId)) continue
+      seen.add(c.workId)
+      out.push(c)
+      added++
+    }
+    if (added === 0) break // page repeated or ran out — deeper pages won't help
+    if (p < pages) await new Promise((r) => setTimeout(r, 300))
+  }
+  return out
 }
 
 /** Pull the default edition id out of a work page's HTML — needed to add to a wishlist. */

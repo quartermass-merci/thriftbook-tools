@@ -223,7 +223,7 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
     return true
   }
   if (msg?.type === 'DISCOVER') {
-    void discover(msg.queries, msg.dealsOnly).then(sendResponse)
+    void discover(msg.queries, msg.dealsOnly, msg.pages).then(sendResponse)
     return true
   }
   if (msg?.type === 'ADD_TO_WISHLIST') {
@@ -256,18 +256,18 @@ async function deleteItem(idListItem: number, id: string): Promise<DeleteAck> {
 }
 
 /** Discover: fetch + parse browse results for a set of taste queries (authors), deduped. */
-async function discover(queries: DiscoverQuery[], dealsOnly = false): Promise<DiscoverAck> {
+async function discover(queries: DiscoverQuery[], dealsOnly = false, pages = 1): Promise<DiscoverAck> {
   try {
     const seen = new Set<string>()
-    const passthrough: SearchCandidate[] = [] // author + category (filtered dashboard-side)
+    const passthrough: SearchCandidate[] = [] // author + category + manual (filtered dashboard-side)
     const pubByPress = new Map<string, SearchCandidate[]>()
-    const qlist = queries.slice(0, 24)
+    const qlist = queries.slice(0, 40)
     for (let qi = 0; qi < qlist.length; qi++) {
       const q = qlist[qi]
       void kvSet(SCAN_PROGRESS_KEY, `Searching ${qi + 1}/${qlist.length} · ${q.label}`)
       let cands: SearchCandidate[] = []
-      try { cands = await fetchSearch(q.term) } catch { cands = [] }
-      for (const c of cands.slice(0, 40)) {
+      try { cands = await fetchSearch(q.term, pages) } catch { cands = [] }
+      for (const c of cands.slice(0, 80)) {
         if (seen.has(c.workId)) continue
         seen.add(c.workId)
         const tagged: SearchCandidate = { ...c, via: q.label, viaKind: q.kind }
