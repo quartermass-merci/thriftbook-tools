@@ -11,8 +11,9 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Thriftbook Tools',
   version: '1.1.0',
+  // Chrome caps the manifest description at 132 chars — the full pitch lives on the store listing.
   description:
-    'Power tools for your ThriftBooks wishlist: filters, price history, a free-book finder, a deals scanner, dedupe, and a publisher/author catalog finder. Unofficial.',
+    'Power tools for your ThriftBooks wishlist: filters, price history, free-book finder, deals, dedupe, publisher search. Unofficial.',
   minimum_chrome_version: '116',
   icons,
   action: {
