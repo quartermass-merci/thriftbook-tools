@@ -330,15 +330,14 @@ async function collect(kind: CollectionKind, name: string, offset: number, limit
       return { ok: false, error: ol?.error ?? 'Open Library lookup failed' }
     }
 
-    // Open Library's publisher match is loose, so keep only docs whose publisher normalizes
-    // to the query. Author search is already tight server-side (light last-name check only).
-    const wantPub = normalizePublisher(name)
+    // Trust Open Library's server-side publisher/author filter. Its per-doc `publisher`
+    // list is only a messy subset (often missing the queried press, or with variants like
+    // "New Directions Book"), so re-checking it here wrongly dropped legitimate titles.
+    // For authors, a light last-name check guards against Open Library's fuzzy matching.
     const wantLast = name.toLowerCase().split(/\s+/).filter(Boolean).pop() ?? ''
-    const docs = ol.docs.filter((d) =>
-      kind === 'publisher'
-        ? d.publishers.some((p) => normalizePublisher(p) === wantPub)
-        : !wantLast || d.authors.some((a) => a.toLowerCase().includes(wantLast)),
-    )
+    const docs = kind === 'author'
+      ? ol.docs.filter((d) => !wantLast || d.authors.some((a) => a.toLowerCase().includes(wantLast)))
+      : ol.docs
 
     const snap = await getSnapshot()
     const onWishlist = new Set((snap?.items ?? []).map((i) => i.productId).filter(Boolean) as string[])

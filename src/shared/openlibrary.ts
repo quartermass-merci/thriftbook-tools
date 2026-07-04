@@ -31,8 +31,9 @@ export function buildOlSearchUrl(kind: CollectionKind, name: string, offset = 0,
   p.set('fields', FIELDS)
   p.set('limit', String(Math.min(100, Math.max(1, limit))))
   p.set('offset', String(Math.max(0, offset)))
-  // Sort by edition count so the best-known titles surface first.
-  p.set('sort', 'editions')
+  // No sort — Open Library's default relevance ranks a publisher's own titles first.
+  // (sort=editions wrongly surfaced mega-republished classics like Hamlet that merely
+  // have a single edition from this publisher.)
   return `https://openlibrary.org/search.json?${p.toString()}`
 }
 
