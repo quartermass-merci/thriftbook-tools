@@ -348,10 +348,15 @@ async function collect(kind: CollectionKind, name: string, offset: number, limit
     for (let i = 0; i < budget.length; i++) {
       const d = budget[i]
       void kvSet(SCAN_PROGRESS_KEY, `Checking ThriftBooks ${i + 1}/${budget.length} · ${d.title}`)
+      // Search ThriftBooks by title + author — its keyword search handles those well,
+      // whereas raw-ISBN search is unreliable and returned nothing. Strip parenthetical
+      // series/edition junk from the Open Library title so the query isn't over-specific.
+      // (ISBNs are still used inside pickBestMatch as the strongest match signal.)
+      const author = d.authors[0] ?? ''
+      const cleanTitle = d.title.replace(/\s*[([{].*$/, '').trim() || d.title
       let tiles: SearchCandidate[] = []
-      const query = d.isbns[0] || `${d.title} ${d.authors[0] ?? ''}`.trim()
-      try { tiles = await fetchSearch(query) } catch { tiles = [] }
-      const best = pickBestMatch(tiles, d)
+      try { tiles = await fetchSearch(`${cleanTitle} ${author}`.trim()) } catch { tiles = [] }
+      const best = pickBestMatch(tiles, { title: cleanTitle, authors: d.authors, isbns: d.isbns })
       if (!best) {
         unmatched++
       } else if (!seen.has(best.workId) && !onWishlist.has(best.workId)) {
