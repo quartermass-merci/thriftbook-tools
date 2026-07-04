@@ -10,7 +10,7 @@ const icons = {
 export default defineManifest({
   manifest_version: 3,
   name: 'Thriftbook Tools',
-  version: '1.0.0',
+  version: '1.1.0',
   description:
     'Power tools for your ThriftBooks wishlist: filters, price history, a free-book finder, a deals scanner, dedupe, and a publisher/author catalog finder. Unofficial.',
   minimum_chrome_version: '116',
