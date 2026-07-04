@@ -123,10 +123,11 @@ export async function triggerCollectFromUI(
   for (const t of tabs) {
     if (t.id == null) continue
     try {
+      // Generous timeout: a 100-title run fetches ~1 ThriftBooks page/second.
       const ack = await sendWithTimeout<CollectAck>(
         t.id,
         { type: 'COLLECT', kind, name, offset: opts.offset, limit: opts.limit, maxCents: opts.maxCents },
-        180_000,
+        900_000,
       )
       if (ack) return ack
     } catch {
