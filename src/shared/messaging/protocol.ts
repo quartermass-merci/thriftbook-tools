@@ -1,5 +1,6 @@
 // Typed message contracts between the content script, service worker, and UI surfaces.
 import type { SearchCandidate, DiscoverQuery } from '@/shared/types'
+import type { OlDoc, CollectionKind } from '@/shared/openlibrary'
 
 export interface NotifyItem {
   id: string
@@ -18,6 +19,8 @@ export type Msg =
   | { type: 'TEST_NOTIFY' }
   | { type: 'ENRICH_NOW' }
   | { type: 'DISCOVER'; queries: DiscoverQuery[]; dealsOnly?: boolean; pages?: number }
+  | { type: 'OL_SEARCH'; kind: CollectionKind; name: string; offset: number; limit: number }
+  | { type: 'COLLECT'; kind: CollectionKind; name: string; offset: number; limit: number; maxCents?: number }
   | { type: 'ADD_TO_WISHLIST'; productUrl: string; wishlistId: string }
 
 export interface SyncAck {
@@ -40,6 +43,23 @@ export interface EnrichAck {
 export interface DiscoverAck {
   ok: boolean
   candidates?: SearchCandidate[]
+  error?: string
+}
+
+/** Service-worker → UI/content: raw Open Library catalog docs for a publisher/author. */
+export interface OlAck {
+  ok: boolean
+  docs?: OlDoc[]
+  total?: number
+  error?: string
+}
+
+/** Content script → UI: Open Library docs matched to buyable ThriftBooks listings. */
+export interface CollectAck {
+  ok: boolean
+  candidates?: SearchCandidate[]
+  total?: number // size of the full Open Library catalog for this query
+  unmatched?: number // docs in this page with no ThriftBooks match
   error?: string
 }
 

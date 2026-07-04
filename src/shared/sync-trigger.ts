@@ -1,8 +1,9 @@
 // Robust "sync now" used by the popup and dashboard. The content script is the
 // only thing that can fetch the API (same-origin), so we message a thriftbooks
 // list tab — trying each match, reloading a stale one, or opening a fresh tab.
-import type { SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, Msg } from '@/shared/messaging/protocol'
+import type { SyncAck, DeleteAck, EnrichAck, DiscoverAck, CollectAck, AddAck, Msg } from '@/shared/messaging/protocol'
 import type { DiscoverQuery } from '@/shared/types'
+import type { CollectionKind } from '@/shared/openlibrary'
 
 const LIST_TAB_MATCH = 'https://www.thriftbooks.com/list/*'
 
@@ -104,6 +105,35 @@ export async function triggerDiscoverFromUI(queries: DiscoverQuery[], dealsOnly 
     }
   }
   return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then run Discover again.' }
+}
+
+/** Collection Finder: enumerate a publisher/author via Open Library (SW), then match
+ *  each title to ThriftBooks — all orchestrated by a list tab's content script. */
+export async function triggerCollectFromUI(
+  kind: CollectionKind,
+  name: string,
+  opts: { offset: number; limit: number; maxCents?: number },
+): Promise<CollectAck> {
+  let tabs: chrome.tabs.Tab[] = []
+  try {
+    tabs = await chrome.tabs.query({ url: LIST_TAB_MATCH })
+  } catch {
+    tabs = []
+  }
+  for (const t of tabs) {
+    if (t.id == null) continue
+    try {
+      const ack = await sendWithTimeout<CollectAck>(
+        t.id,
+        { type: 'COLLECT', kind, name, offset: opts.offset, limit: opts.limit, maxCents: opts.maxCents },
+        180_000,
+      )
+      if (ack) return ack
+    } catch {
+      /* no content script here — try the next */
+    }
+  }
+  return { ok: false, error: 'Open your ThriftBooks wishlist in a tab, then run the finder again.' }
 }
 
 /** Add a found book to one of your wishlists via a list tab's content script. */

@@ -12,7 +12,7 @@ export default defineManifest({
   name: 'Thriftbook Tools',
   version: '1.0.0',
   description:
-    'Power tools for your ThriftBooks wishlist: filters, price history, a free-book finder, a deals scanner, and dedupe. Unofficial.',
+    'Power tools for your ThriftBooks wishlist: filters, price history, a free-book finder, a deals scanner, dedupe, and a publisher/author catalog finder. Unofficial.',
   minimum_chrome_version: '116',
   icons,
   action: {
@@ -35,7 +35,7 @@ export default defineManifest({
     },
   ],
   permissions: ['storage', 'alarms', 'notifications', 'unlimitedStorage'],
-  host_permissions: ['https://www.thriftbooks.com/*'],
+  host_permissions: ['https://www.thriftbooks.com/*', 'https://openlibrary.org/*'],
   web_accessible_resources: [
     {
       resources: ['icons/*'],

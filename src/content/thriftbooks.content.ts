@@ -10,12 +10,13 @@ import { isFreeBookEligible } from '@/shared/types'
 import type { WishlistSnapshot, WishlistItem, ItemState, Settings, NotificationTrigger, Enrichment, SearchCandidate, DiscoverQuery } from '@/shared/types'
 import { getEnrichmentMap, setEnrichmentMap } from '@/shared/storage/enrichment'
 import { fetchEnrichment } from './adapter/enrich'
-import { fetchSearch, findEditionId } from './adapter/search'
+import { fetchSearch, findEditionId, pickBestMatch } from './adapter/search'
 import { fetchWithTimeout } from './adapter/http'
 import { kvSet } from '@/shared/storage/kv'
 import { normalizePublisher } from '@/shared/util/publisher'
 import { formatCents } from '@/shared/util/money'
-import type { Msg, SyncAck, DeleteAck, EnrichAck, DiscoverAck, AddAck, NotifyItem } from '@/shared/messaging/protocol'
+import type { Msg, SyncAck, DeleteAck, EnrichAck, DiscoverAck, CollectAck, OlAck, AddAck, NotifyItem } from '@/shared/messaging/protocol'
+import type { CollectionKind } from '@/shared/openlibrary'
 
 const SYNC_THROTTLE_MS = 90_000
 const SCAN_PROGRESS_KEY = 'tbw:scan-progress'
@@ -226,6 +227,10 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
     void discover(msg.queries, msg.dealsOnly, msg.pages).then(sendResponse)
     return true
   }
+  if (msg?.type === 'COLLECT') {
+    void collect(msg.kind, msg.name, msg.offset, msg.limit, msg.maxCents).then(sendResponse)
+    return true
+  }
   if (msg?.type === 'ADD_TO_WISHLIST') {
     void addToWishlist(msg.productUrl, msg.wishlistId).then(sendResponse)
     return true
@@ -309,6 +314,59 @@ async function discover(queries: DiscoverQuery[], dealsOnly = false, pages = 1):
     void kvSet(SCAN_PROGRESS_KEY, '')
     return { ok: true, candidates: dealsOnly ? verified : [...passthrough, ...verified] }
   } catch (e) {
+    return { ok: false, error: String(e) }
+  }
+}
+
+/** Collection Finder: enumerate a publisher/author from Open Library (via the SW), then
+ *  check each title's price + availability on ThriftBooks. Bounded per run; the dashboard's
+ *  "Load more" advances the offset. Streams progress through the scan-progress key. */
+async function collect(kind: CollectionKind, name: string, offset: number, limit: number, maxCents?: number): Promise<CollectAck> {
+  try {
+    void kvSet(SCAN_PROGRESS_KEY, `Looking up “${name}” in Open Library…`)
+    const ol = (await chrome.runtime.sendMessage({ type: 'OL_SEARCH', kind, name, offset, limit })) as OlAck | undefined
+    if (!ol?.ok || !ol.docs) {
+      void kvSet(SCAN_PROGRESS_KEY, '')
+      return { ok: false, error: ol?.error ?? 'Open Library lookup failed' }
+    }
+
+    // Open Library's publisher match is loose, so keep only docs whose publisher normalizes
+    // to the query. Author search is already tight server-side (light last-name check only).
+    const wantPub = normalizePublisher(name)
+    const wantLast = name.toLowerCase().split(/\s+/).filter(Boolean).pop() ?? ''
+    const docs = ol.docs.filter((d) =>
+      kind === 'publisher'
+        ? d.publishers.some((p) => normalizePublisher(p) === wantPub)
+        : !wantLast || d.authors.some((a) => a.toLowerCase().includes(wantLast)),
+    )
+
+    const snap = await getSnapshot()
+    const onWishlist = new Set((snap?.items ?? []).map((i) => i.productId).filter(Boolean) as string[])
+    const seen = new Set<string>()
+    const candidates: SearchCandidate[] = []
+    let unmatched = 0
+    const budget = docs.slice(0, limit)
+    for (let i = 0; i < budget.length; i++) {
+      const d = budget[i]
+      void kvSet(SCAN_PROGRESS_KEY, `Checking ThriftBooks ${i + 1}/${budget.length} · ${d.title}`)
+      let tiles: SearchCandidate[] = []
+      const query = d.isbns[0] || `${d.title} ${d.authors[0] ?? ''}`.trim()
+      try { tiles = await fetchSearch(query) } catch { tiles = [] }
+      const best = pickBestMatch(tiles, d)
+      if (!best) {
+        unmatched++
+      } else if (!seen.has(best.workId) && !onWishlist.has(best.workId)) {
+        seen.add(best.workId)
+        if (maxCents == null || (best.priceCents != null && best.priceCents <= maxCents)) {
+          candidates.push({ ...best, via: name, viaKind: kind })
+        }
+      }
+      await new Promise((r) => setTimeout(r, 250))
+    }
+    void kvSet(SCAN_PROGRESS_KEY, '')
+    return { ok: true, candidates, total: ol.total, unmatched }
+  } catch (e) {
+    void kvSet(SCAN_PROGRESS_KEY, '')
     return { ok: false, error: String(e) }
   }
 }

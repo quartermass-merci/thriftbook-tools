@@ -120,6 +120,8 @@ export interface SearchCandidate {
   via?: string
   viaKind?: DiscoverKind
   isDeal?: boolean
+  /** Collection Finder: how this ThriftBooks listing was matched to an Open Library title. */
+  matchedBy?: 'isbn' | 'title'
 }
 
 export interface WishlistSnapshot {

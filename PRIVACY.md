@@ -1,6 +1,6 @@
 # Thriftbook Tools — Privacy Policy
 
-_Last updated: June 22, 2026_
+_Last updated: July 3, 2026_
 
 Thriftbook Tools is an **unofficial** browser extension that augments your own
 ThriftBooks wishlist. It is **not affiliated with, endorsed by, or sponsored by
@@ -19,13 +19,19 @@ book's page so you can add it.
 ## Where your data goes
 - **Everything stays on your device.** All data is stored locally in your browser via
   `chrome.storage.local`.
-- **Nothing is ever sent to the developer or any third-party server.** There are no
-  analytics, trackers, ads, or external requests — other than to `thriftbooks.com`
-  itself, using your existing logged-in session.
+- **Nothing is ever sent to the developer.** There are no analytics, trackers, or ads.
+- The extension contacts only two external services, and only as you use it:
+  - **`thriftbooks.com`** — your wishlist and its product/search pages, using your
+    existing logged-in session.
+  - **`openlibrary.org`** (Open Library, a free catalog run by the non-profit Internet
+    Archive) — used **only** by the publisher/author finder. The **only** thing sent is
+    the publisher or author name you type — never your wishlist, your account, or any
+    identifying information. If you don't use the finder, no request is ever made.
 - The developer cannot see your wishlist, your account, or any of your data.
 
 ## Permissions and why they're needed
 - **Access to thriftbooks.com** — to read your wishlist and product pages as logged-in you.
+- **Access to openlibrary.org** — to look up a publisher's or author's catalog when you use the finder (only the name you type is sent).
 - **storage / unlimitedStorage** — to save your wishlist snapshot, price history, and settings on your device.
 - **alarms** — to periodically re-check your wishlist while Chrome is open.
 - **notifications** — to alert you when a watched book returns to stock or drops in price.

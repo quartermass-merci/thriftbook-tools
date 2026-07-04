@@ -16,14 +16,16 @@ dedupe. Everything runs locally in your browser; nothing leaves your device.
 - **Freshness** — "New" and "Back in stock" badges so you can pounce on rare titles.
 - **Free-book finder** — in-stock books within your ReadingRewards credit, ranked by value.
 - **Discover** — find books you don't own yet, by the authors, presses, and genres you collect.
+- **Collection finder** — pull a whole publisher's or author's catalog (via Open Library) and see what's buyable on ThriftBooks.
 - **Deals scanner** — surface ThriftBooks Deal (volume-discount) titles that match your taste.
 - **Dedupe** — find and clean duplicate titles on your list.
 - **Notifications** — optional back-in-stock / price-drop alerts.
 
 ## Privacy
-All data is stored locally via `chrome.storage.local`. Nothing is ever sent to
-any server — no analytics, no tracking. It uses your existing ThriftBooks login
-and never sees your password. See **[PRIVACY.md](./PRIVACY.md)**.
+Everything is stored locally via `chrome.storage.local` — no analytics, no tracking,
+and it never sees your password. The only external requests are to ThriftBooks (your
+own logged-in session) and, when you use the publisher/author finder, to Open Library
+(only the name you type is sent). See **[PRIVACY.md](./PRIVACY.md)**.
 
 ## Tech
 React 19 · Vite · TypeScript (strict) · Tailwind CSS 4 · `@crxjs/vite-plugin`.

@@ -61,6 +61,43 @@ export async function fetchSearch(query: string, pages = 1): Promise<SearchCandi
   return out
 }
 
+function normTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(the|a|an)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Pick the ThriftBooks search tile that best matches an Open Library work.
+ *  ISBN overlap is a confirmed match; otherwise require a close title match with a
+ *  loose author check; otherwise null (the title has no confident ThriftBooks listing). */
+export function pickBestMatch(
+  tiles: SearchCandidate[],
+  doc: { title: string; authors: string[]; isbns: string[] },
+): SearchCandidate | null {
+  if (!tiles.length) return null
+  const isbnSet = new Set(doc.isbns.map((x) => x.replace(/[^0-9Xx]/g, '').toUpperCase()).filter(Boolean))
+  if (isbnSet.size) {
+    for (const t of tiles) {
+      const ti = (t.isbn ?? '').replace(/[^0-9Xx]/g, '').toUpperCase()
+      if (ti && isbnSet.has(ti)) return { ...t, matchedBy: 'isbn' }
+    }
+  }
+  const dt = normTitle(doc.title)
+  if (!dt) return null
+  const lastName = (doc.authors[0] ?? '').toLowerCase().split(/\s+/).filter(Boolean).pop() ?? ''
+  for (const t of tiles) {
+    const tt = normTitle(t.title)
+    if (!tt) continue
+    const titleOk = tt === dt || tt.includes(dt) || dt.includes(tt)
+    const authorOk = !lastName || !t.author || t.author.toLowerCase().includes(lastName)
+    if (titleOk && authorOk) return { ...t, matchedBy: 'title' }
+  }
+  return null
+}
+
 /** Pull the default edition id out of a work page's HTML — needed to add to a wishlist. */
 export function findEditionId(workHtml: string): string | undefined {
   return (
