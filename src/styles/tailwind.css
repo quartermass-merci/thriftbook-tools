@@ -39,6 +39,14 @@ input[type='radio'] {
   accent-color: var(--color-teal);
 }
 
+/* Keyboard focus: brand-teal ring with a canvas halo so it also reads on the
+   dark masthead and teal-filled buttons. (Default outlines are replaced, never removed.) */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(245, 248, 248, 0.9);
+}
+
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);

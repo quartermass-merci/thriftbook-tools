@@ -944,7 +944,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
           <span className="text-muted">Search by</span>
           <div className="inline-flex rounded border border-line p-0.5">
             {(['keyword', 'publisher', 'author'] as const).map((m) => (
-              <button key={m} onClick={() => onMode(m)} className={`rounded px-2.5 py-1 capitalize ${qMode === m ? 'bg-teal-700 text-white' : 'text-muted hover:text-ink'}`}>{m === 'keyword' ? 'Keyword' : m}</button>
+              <button key={m} onClick={() => onMode(m)} aria-pressed={qMode === m} className={`rounded px-2.5 py-1 capitalize ${qMode === m ? 'bg-teal-700 text-white' : 'text-muted hover:text-ink'}`}>{m === 'keyword' ? 'Keyword' : m}</button>
             ))}
           </div>
         </div>
@@ -972,7 +972,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
           <button onClick={onSubmit} disabled={discovering} className="rounded bg-teal-700 px-3.5 py-1.5 font-medium text-white hover:opacity-90 disabled:opacity-50">{discovering ? (collectMode ? 'Finding…' : 'Searching…') : 'Search'}</button>
           {!collectMode && (
             <>
-              <span className="mx-0.5 select-none text-line">|</span>
+              <span aria-hidden="true" className="mx-0.5 select-none text-line">|</span>
               <button onClick={onSuggest} disabled={discovering} title="Suggest books from the authors, presses & genres you already collect (≤ your free-book ceiling)" className="rounded border border-line px-3 py-1.5 text-teal-700 hover:bg-cream/40 disabled:opacity-50">Suggest from my list ▸</button>
               <label className="flex cursor-pointer items-center gap-1 text-muted" title="Include your top genres when suggesting (broader)"><input type="checkbox" checked={includeCats} onChange={(e) => setIncludeCats(e.target.checked)} />+ genres</label>
             </>
@@ -983,7 +983,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
         <p className="mt-10 text-center text-[15px] text-muted">{status || (collectMode ? 'Searching Open Library + ThriftBooks…' : 'Searching ThriftBooks…')}</p>
       ) : candidates.length === 0 ? (
         <Empty title="Nothing to show yet">{collectMode
-          ? <>Type a {modeLabel} — e.g. <b className="text-ink">{qMode === 'publisher' ? 'New Directions' : 'Anne Carson'}</b> — and hit <b className="text-ink">Search</b>. I’ll pull the full catalog from Open Library and find what’s on ThriftBooks.</>
+          ? <>Type a {modeLabel} — e.g. <b className="text-ink">{qMode === 'publisher' ? 'New Directions' : 'Anne Carson'}</b> — and hit <b className="text-ink">Search</b>. It pulls the full catalog from Open Library, then finds what’s on ThriftBooks.</>
           : <>Search above — try a press like <b className="text-ink">Verso</b> with <b className="text-ink">Hardcover</b> and <b className="text-ink">Max&nbsp;$10</b>. Or hit <b className="text-ink">Suggest from my list</b> for picks from your taste.</>}</Empty>
       ) : (
         <>
@@ -1019,6 +1019,9 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
             const chipCls = isManual ? 'bg-teal-700 text-white' : c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal-700'
             const added = addedIds.has(c.workId)
             const free = c.priceCents != null && c.priceCents <= ceiling
+            // In a collect run every row shares the searched name — repeating it 100×
+            // is noise, so only show the chip when it adds affinity info.
+            const chipRedundant = collectMode && aff === 0 && c.via === qTerm.trim()
             return (
               <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
                 <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
@@ -1026,7 +1029,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
                 <div className="min-w-0 flex-1">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{c.title}</a>
                   <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
-                  {!isManual && <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>}
+                  {!isManual && !chipRedundant && <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>}
                 </div>
                 <div className="shrink-0 text-right">
                   {(c.isDeal || free) && (
@@ -1050,20 +1053,20 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
             return (
               <li key={c.workId} className="flex flex-col overflow-hidden rounded-lg border border-line bg-surface">
                 <a href={c.productUrl} target="_blank" rel="noreferrer" tabIndex={-1} aria-hidden="true" className="block bg-cream/40">
-                  {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" loading="lazy" className="h-44 w-full object-cover" /> : <div className="flex h-44 w-full items-center justify-center px-2 text-center font-display text-sm text-faint">{c.title}</div>}
+                  {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" loading="lazy" className="aspect-[2/3] w-full object-cover" /> : <div className="flex aspect-[2/3] w-full items-center justify-center px-2 text-center font-display text-sm text-faint">{c.title}</div>}
                 </a>
                 <div className="flex flex-1 flex-col gap-0.5 p-2">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-[15px] font-bold leading-snug text-ink hover:text-teal-700">{c.title}</a>
-                  <div className="line-clamp-1 text-[12px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}</div>
+                  <div className="line-clamp-1 text-[12px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
                   {(c.isDeal || free) && (
                     <div className="mt-0.5 flex flex-wrap gap-1">
-                      {c.isDeal && <span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[11px] font-semibold text-ink">DEAL</span>}
-                      {free && <span title={`At or under your ${formatCents(ceiling)} ReadingRewards free-book credit`} className="rounded bg-accent px-1 py-0.5 text-[11px] font-semibold text-ink">FREE-BOOK PICK</span>}
+                      {c.isDeal && <span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span>}
+                      {free && <span title={`At or under your ${formatCents(ceiling)} ReadingRewards free-book credit`} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">FREE-BOOK PICK</span>}
                     </div>
                   )}
                   <div className="mt-auto flex items-center justify-between gap-1 pt-1">
                     <span className="font-mono text-[15px] font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</span>
-                    <button onClick={() => onAdd(c)} title="Open on ThriftBooks to add it to your wishlist" className="rounded bg-teal-700 px-2 py-1 text-[12px] font-medium text-white hover:opacity-90">{added ? 'Opened ↗' : 'Open ↗'}</button>
+                    <button onClick={() => onAdd(c)} title="Open on ThriftBooks to add it to your wishlist" className="rounded bg-teal-700 px-2.5 py-1 text-[13px] font-medium text-white hover:opacity-90">{added ? 'Opened ↗' : 'Open ↗'}</button>
                   </div>
                 </div>
               </li>
