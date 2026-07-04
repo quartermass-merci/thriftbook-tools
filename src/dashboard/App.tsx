@@ -591,7 +591,7 @@ export function App() {
               onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open) setDedupeOpen(false) }}
               className="rounded bg-accent px-3 py-1.5 text-[15px] font-semibold text-ink hover:brightness-95"
             >
-              {discoverOpen ? '✕ Close' : '✨ Find books'}
+              {discoverOpen ? '✕ Close' : '★ Find books'}
             </button>
             <button
               onClick={() => { const open = !dedupeOpen; setDedupeOpen(open); if (open) setDiscoverOpen(false) }}
@@ -886,6 +886,43 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
+/** The scan-in-progress hero. A deep scan holds the screen for up to ~2 minutes, so
+ *  the wait state earns real presence: an oversized DM Mono counter, a yellow brand
+ *  bar, and the title currently being checked. Falls back to an indeterminate pulse
+ *  when the status line carries no "i/N" progress yet. */
+function ScanHero({ status, fallback }: { status: string; fallback: string }) {
+  const m = status.match(/(\d+)\s*\/\s*(\d+)/)
+  const cur = m ? Number(m[1]) : 0
+  const total = m ? Math.max(1, Number(m[2])) : 0
+  const pct = m ? Math.min(100, Math.round((cur / total) * 100)) : null
+  const label = m ? status.slice(0, m.index).replace(/[·:,\s]+$/, '').trim() : ''
+  const detail = status.includes('·') ? status.split('·').slice(1).join('·').trim() : ''
+  return (
+    <div className="mx-auto mt-14 max-w-md text-center" role="status" aria-live="polite">
+      {m ? (
+        <>
+          <div className="font-display text-[13px] font-semibold uppercase tracking-[0.14em] text-teal-700">{label || 'Scanning'}</div>
+          <div className="mt-1 font-mono text-6xl font-medium tabular-nums text-ink">
+            {cur}
+            <span className="text-faint"> / {total}</span>
+          </div>
+          <div className="mt-5 h-2 overflow-hidden rounded bg-line">
+            <div className="h-full rounded bg-accent transition-[width] duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          {detail && <div className="mt-3 truncate text-lg italic text-muted">{detail}</div>}
+        </>
+      ) : (
+        <>
+          <div className="mx-auto h-2 w-2/3 overflow-hidden rounded bg-line">
+            <div className="h-full w-1/3 animate-pulse rounded bg-accent" />
+          </div>
+          <p className="mt-4 text-[15px] text-muted">{status || fallback}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
 function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceiling, onSubmit, onSuggest, onLoadMore, canLoadMore, qMode, onMode, qDepth, setQDepth, qTerm, setQTerm, qFormat, setQFormat, qMax, setQMax, includeCats, setIncludeCats, dealMode, setDealMode, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
@@ -937,7 +974,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
     <div>
       <div className="mb-4 border-b-4 border-accent pb-3">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h2 className="font-display text-xl font-bold text-ink">{qMode === 'keyword' ? 'Search ThriftBooks' : qMode === 'publisher' ? 'Find a publisher’s catalog' : 'Find an author’s books'}</h2>
+          <h2 className="font-display text-2xl font-bold text-ink">{qMode === 'keyword' ? 'Search ThriftBooks' : qMode === 'publisher' ? 'Find a publisher’s catalog' : 'Find an author’s books'}</h2>
           <span className="text-[13px] text-muted">{status || (collectMode ? 'Pulls the full catalog from Open Library, then finds what’s on ThriftBooks.' : 'Books not on your list — search by press, author, title, or keyword.')}</span>
         </div>
         <div className="mb-2 flex items-center gap-2 text-[13px]">
@@ -980,7 +1017,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
         </div>
       </div>
       {discovering ? (
-        <p className="mt-10 text-center text-[15px] text-muted">{status || (collectMode ? 'Searching Open Library + ThriftBooks…' : 'Searching ThriftBooks…')}</p>
+        <ScanHero status={status} fallback={collectMode ? 'Searching Open Library + ThriftBooks…' : 'Searching ThriftBooks…'} />
       ) : candidates.length === 0 ? (
         <Empty title="Nothing to show yet">{collectMode
           ? <>Type a {modeLabel} — e.g. <b className="text-ink">{qMode === 'publisher' ? 'New Directions' : 'Anne Carson'}</b> — and hit <b className="text-ink">Search</b>. It pulls the full catalog from Open Library, then finds what’s on ThriftBooks.</>
@@ -988,9 +1025,10 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
       ) : (
         <>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted">
-          <span>
-            {candidates.length} result{candidates.length === 1 ? '' : 's'}
-            {freeCount > 0 && <> · <span className="rounded bg-accent px-1 py-0.5 font-semibold text-ink">{freeCount} within your {formatCents(ceiling)} free-book credit</span></>}
+          <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            <span className="font-mono text-2xl font-medium tabular-nums leading-none text-teal-700">{candidates.length}</span>
+            <span className="font-display text-[15px] font-semibold text-ink">result{candidates.length === 1 ? '' : 's'}</span>
+            {freeCount > 0 && <span className="ml-0.5 rounded bg-accent px-1.5 py-0.5 text-[12px] font-semibold text-ink">{freeCount} within your {formatCents(ceiling)} free-book credit</span>}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded border border-line p-0.5" role="group" aria-label="Result view">
@@ -1023,7 +1061,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
             // is noise, so only show the chip when it adds affinity info.
             const chipRedundant = collectMode && aff === 0 && c.via === qTerm.trim()
             return (
-              <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+              <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 hover:border-teal-700">
                 <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
                 {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />}
                 <div className="min-w-0 flex-1">
@@ -1051,7 +1089,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
             const added = addedIds.has(c.workId)
             const free = c.priceCents != null && c.priceCents <= ceiling
             return (
-              <li key={c.workId} className="flex flex-col overflow-hidden rounded-lg border border-line bg-surface">
+              <li key={c.workId} className="flex flex-col overflow-hidden rounded-lg border border-line bg-surface hover:border-teal-700 hover:shadow-sm">
                 <a href={c.productUrl} target="_blank" rel="noreferrer" tabIndex={-1} aria-hidden="true" className="block bg-cream/40">
                   {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" loading="lazy" className="aspect-[2/3] w-full object-cover" /> : <div className="flex aspect-[2/3] w-full items-center justify-center px-2 text-center font-display text-sm text-faint">{c.title}</div>}
                 </a>
