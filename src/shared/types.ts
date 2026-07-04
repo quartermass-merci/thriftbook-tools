@@ -122,6 +122,8 @@ export interface SearchCandidate {
   isDeal?: boolean
   /** Collection Finder: how this ThriftBooks listing was matched to an Open Library title. */
   matchedBy?: 'isbn' | 'title'
+  /** First publication year (from Open Library) — present on Collection Finder results only. */
+  year?: number
 }
 
 export interface WishlistSnapshot {

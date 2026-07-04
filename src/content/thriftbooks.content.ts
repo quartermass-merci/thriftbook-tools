@@ -362,7 +362,7 @@ async function collect(kind: CollectionKind, name: string, offset: number, limit
       } else if (!seen.has(best.workId) && !onWishlist.has(best.workId)) {
         seen.add(best.workId)
         if (maxCents == null || (best.priceCents != null && best.priceCents <= maxCents)) {
-          candidates.push({ ...best, via: name, viaKind: kind })
+          candidates.push({ ...best, via: name, viaKind: kind, year: d.year })
         }
       }
       await new Promise((r) => setTimeout(r, 250))

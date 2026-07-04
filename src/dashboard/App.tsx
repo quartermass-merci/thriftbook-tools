@@ -954,13 +954,17 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
   const modeLabel = qMode === 'author' ? 'author' : 'publisher'
   // Display sort for the result list. 'relevance' keeps the incoming order (taste
   // affinity for Suggest, cheapest-first for searches); the rest re-sort client-side.
-  const [sortBy, setSortBy] = useState<'relevance' | 'price-asc' | 'price-desc' | 'title' | 'author'>('relevance')
+  const [sortBy, setSortBy] = useState<'relevance' | 'price-asc' | 'price-desc' | 'year-desc' | 'year-asc' | 'title' | 'author'>('relevance')
   const sorted = useMemo(() => {
     const arr = [...candidates]
     const price = (c: SearchCandidate) => c.priceCents ?? Number.MAX_SAFE_INTEGER
     switch (sortBy) {
       case 'price-asc': return arr.sort((a, b) => price(a) - price(b))
       case 'price-desc': return arr.sort((a, b) => (b.priceCents ?? -1) - (a.priceCents ?? -1))
+      // Publication year comes from Open Library (first-publication), so keyword/Suggest
+      // results without one sink to the end rather than faking a date.
+      case 'year-desc': return arr.sort((a, b) => (b.year ?? -1) - (a.year ?? -1))
+      case 'year-asc': return arr.sort((a, b) => (a.year ?? 99999) - (b.year ?? 99999))
       case 'title': return arr.sort((a, b) => a.title.localeCompare(b.title))
       case 'author': return arr.sort((a, b) => (a.author ?? '~').localeCompare(b.author ?? '~'))
       default: return arr
@@ -1041,6 +1045,8 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
                 <option value="relevance">Relevance</option>
                 <option value="price-asc">Price: low → high</option>
                 <option value="price-desc">Price: high → low</option>
+                <option value="year-desc">Published: newest</option>
+                <option value="year-asc">Published: oldest</option>
                 <option value="title">Title A–Z</option>
                 <option value="author">Author A–Z</option>
               </select>
@@ -1066,7 +1072,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
                 {c.coverImageUrl ? <img src={c.coverImageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" loading="lazy" /> : <div className="h-14 w-10 shrink-0 rounded bg-cream/50" />}
                 <div className="min-w-0 flex-1">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-1 font-display text-lg font-bold text-ink hover:text-teal-700">{c.title}</a>
-                  <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
+                  <div className="text-[13px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.year ? <> · <span className="font-mono">{c.year}</span></> : null}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
                   {!isManual && !chipRedundant && <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>}
                 </div>
                 <div className="shrink-0 text-right">
@@ -1095,7 +1101,7 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceili
                 </a>
                 <div className="flex flex-1 flex-col gap-0.5 p-2">
                   <a href={c.productUrl} target="_blank" rel="noreferrer" className="line-clamp-2 font-display text-[15px] font-bold leading-snug text-ink hover:text-teal-700">{c.title}</a>
-                  <div className="line-clamp-1 text-[12px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
+                  <div className="line-clamp-1 text-[12px] text-muted">{c.author ?? '—'}{c.format ? ` · ${c.format}` : ''}{c.year ? <> · <span className="font-mono">{c.year}</span></> : null}{c.matchedBy === 'title' ? ' · title match' : ''}</div>
                   {(c.isDeal || free) && (
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {c.isDeal && <span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span>}
