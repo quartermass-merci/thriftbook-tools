@@ -591,7 +591,7 @@ export function App() {
               onClick={() => { const open = !discoverOpen; setDiscoverOpen(open); if (open) setDedupeOpen(false) }}
               className="rounded bg-accent px-3 py-1.5 text-[15px] font-semibold text-ink hover:brightness-95"
             >
-              {discoverOpen ? '✕ Close' : '✨ Discover ≤$7'}
+              {discoverOpen ? '✕ Close' : '✨ Find books'}
             </button>
             <button
               onClick={() => { const open = !dedupeOpen; setDedupeOpen(open); if (open) setDiscoverOpen(false) }}
@@ -681,6 +681,7 @@ export function App() {
               status={discoverStatus}
               onAdd={onAdd}
               addedIds={addedIds}
+              ceiling={ceiling}
               onSubmit={onDiscoverSubmit}
               onSuggest={() => runDiscover()}
               onLoadMore={() => runCollect(true)}
@@ -883,12 +884,13 @@ function DedupePanel({ groups, onDelete, busy, listsOf }: {
   )
 }
 
-function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSubmit, onSuggest, onLoadMore, canLoadMore, qMode, onMode, qTerm, setQTerm, qFormat, setQFormat, qMax, setQMax, includeCats, setIncludeCats, dealMode, setDealMode, taste }: {
+function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, ceiling, onSubmit, onSuggest, onLoadMore, canLoadMore, qMode, onMode, qTerm, setQTerm, qFormat, setQFormat, qMax, setQMax, includeCats, setIncludeCats, dealMode, setDealMode, taste }: {
   candidates: SearchCandidate[]
   discovering: boolean
   status: string
   onAdd: (c: SearchCandidate) => void
   addedIds: Set<string>
+  ceiling: number
   onSubmit: () => void
   onSuggest: () => void
   onLoadMore: () => void
@@ -909,6 +911,21 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSub
 }) {
   const collectMode = qMode !== 'keyword'
   const modeLabel = qMode === 'author' ? 'author' : 'publisher'
+  // Display sort for the result list. 'relevance' keeps the incoming order (taste
+  // affinity for Suggest, cheapest-first for searches); the rest re-sort client-side.
+  const [sortBy, setSortBy] = useState<'relevance' | 'price-asc' | 'price-desc' | 'title' | 'author'>('relevance')
+  const sorted = useMemo(() => {
+    const arr = [...candidates]
+    const price = (c: SearchCandidate) => c.priceCents ?? Number.MAX_SAFE_INTEGER
+    switch (sortBy) {
+      case 'price-asc': return arr.sort((a, b) => price(a) - price(b))
+      case 'price-desc': return arr.sort((a, b) => (b.priceCents ?? -1) - (a.priceCents ?? -1))
+      case 'title': return arr.sort((a, b) => a.title.localeCompare(b.title))
+      case 'author': return arr.sort((a, b) => (a.author ?? '~').localeCompare(b.author ?? '~'))
+      default: return arr
+    }
+  }, [candidates, sortBy])
+  const freeCount = candidates.filter((c) => c.priceCents != null && c.priceCents <= ceiling).length
   return (
     <div>
       <div className="mb-4 border-b-4 border-accent pb-3">
@@ -916,10 +933,13 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSub
           <h2 className="font-display text-xl font-bold text-ink">{qMode === 'keyword' ? 'Search ThriftBooks' : qMode === 'publisher' ? 'Find a publisher’s catalog' : 'Find an author’s books'}</h2>
           <span className="text-[13px] text-muted">{status || (collectMode ? 'Pulls the full catalog from Open Library, then finds what’s on ThriftBooks.' : 'Books not on your list — search by press, author, title, or keyword.')}</span>
         </div>
-        <div className="mb-2 inline-flex rounded border border-line p-0.5 text-[13px]">
-          {(['keyword', 'publisher', 'author'] as const).map((m) => (
-            <button key={m} onClick={() => onMode(m)} className={`rounded px-2.5 py-1 capitalize ${qMode === m ? 'bg-teal-700 text-white' : 'text-muted hover:text-ink'}`}>{m === 'keyword' ? 'Keyword' : m}</button>
-          ))}
+        <div className="mb-2 flex items-center gap-2 text-[13px]">
+          <span className="text-muted">Search by</span>
+          <div className="inline-flex rounded border border-line p-0.5">
+            {(['keyword', 'publisher', 'author'] as const).map((m) => (
+              <button key={m} onClick={() => onMode(m)} className={`rounded px-2.5 py-1 capitalize ${qMode === m ? 'bg-teal-700 text-white' : 'text-muted hover:text-ink'}`}>{m === 'keyword' ? 'Keyword' : m}</button>
+            ))}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <input value={qTerm} onChange={(e) => setQTerm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') onSubmit() }} placeholder={qMode === 'publisher' ? 'e.g. New Directions, Dalkey Archive Press, Verso…' : qMode === 'author' ? 'e.g. Anne Carson, Roberto Bolaño…' : 'e.g. Verso, Badiou, Jack Ketchum, horror…'} aria-label={collectMode ? `${modeLabel} name` : 'Search ThriftBooks by press, author, title, or keyword'} className="min-w-[15rem] flex-1 rounded border border-line px-2.5 py-1.5 text-ink" />
@@ -950,14 +970,31 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSub
           : <>Search above — try a press like <b className="text-ink">Verso</b> with <b className="text-ink">Hardcover</b> and <b className="text-ink">Max&nbsp;$10</b>. Or hit <b className="text-ink">Suggest from my list</b> for picks from your taste.</>}</Empty>
       ) : (
         <>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted">
+          <span>
+            {candidates.length} result{candidates.length === 1 ? '' : 's'}
+            {freeCount > 0 && <> · <span className="rounded bg-accent px-1 py-0.5 font-semibold text-ink">{freeCount} within your {formatCents(ceiling)} free-book credit</span></>}
+          </span>
+          <label className="flex items-center gap-1">
+            Sort
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} aria-label="Sort results" className="rounded border border-line px-2 py-1 text-ink">
+              <option value="relevance">Relevance</option>
+              <option value="price-asc">Price: low → high</option>
+              <option value="price-desc">Price: high → low</option>
+              <option value="title">Title A–Z</option>
+              <option value="author">Author A–Z</option>
+            </select>
+          </label>
+        </div>
         <ol className="space-y-2">
-          {candidates.map((c, i) => {
+          {sorted.map((c, i) => {
             const isManual = c.viaKind === 'manual'
             const m = c.viaKind === 'publisher' ? taste.publisher : c.viaKind === 'category' ? taste.category : taste.author
             const aff = isManual ? 0 : m.get(c.via ?? '') ?? 0
             const why = c.viaKind === 'publisher' ? 'from this press' : c.viaKind === 'category' ? 'in this category' : 'by this author'
             const chipCls = isManual ? 'bg-teal-700 text-white' : c.viaKind === 'publisher' ? 'bg-accent/30 text-ink' : c.viaKind === 'category' ? 'bg-cream text-ink' : 'bg-teal/10 text-teal-700'
             const added = addedIds.has(c.workId)
+            const free = c.priceCents != null && c.priceCents <= ceiling
             return (
               <li key={c.workId} className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
                 <span className="w-6 shrink-0 text-center font-mono text-lg font-bold text-faint">{i + 1}</span>
@@ -968,7 +1005,12 @@ function DiscoverPanel({ candidates, discovering, status, onAdd, addedIds, onSub
                   {!isManual && <div className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[12px] font-medium ${chipCls}`}>{c.via}{aff ? ` · ${aff} ${why} on your list` : ''}</div>}
                 </div>
                 <div className="shrink-0 text-right">
-                  {c.isDeal && <div className="mb-0.5"><span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span></div>}
+                  {(c.isDeal || free) && (
+                    <div className="mb-0.5 flex justify-end gap-1">
+                      {c.isDeal && <span title={DEAL_TIERS} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">DEAL</span>}
+                      {free && <span title={`At or under your ${formatCents(ceiling)} ReadingRewards free-book credit`} className="rounded bg-accent px-1 py-0.5 text-[12px] font-semibold text-ink">FREE-BOOK PICK</span>}
+                    </div>
+                  )}
                   <div className="font-mono text-lg font-bold tabular-nums text-ink">{formatCents(c.priceCents)}</div>
                   <button onClick={() => onAdd(c)} title="Open on ThriftBooks to add it to your wishlist" className="mt-0.5 rounded bg-teal-700 px-2.5 py-1 text-[13px] font-medium text-white hover:opacity-90">{added ? 'Opened ↗' : 'Open ↗'}</button>
                 </div>
